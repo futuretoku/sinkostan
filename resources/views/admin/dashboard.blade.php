@@ -39,7 +39,6 @@
             <h2 class="text-indigo-600 font-extrabold text-lg mb-8 uppercase tracking-wider">Menu Utama</h2>
             <nav class="space-y-2">
                 <a href="{{ route('admin.dashboard') }}" class="block px-4 py-3 rounded-xl bg-indigo-50 text-indigo-600 font-bold">Dashboard</a>
-                
                 <div class="group">
                     <button class="dropdown-toggle w-full flex items-center justify-between px-4 py-3 rounded-xl font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-all">
                         <span>Manajemen</span>
@@ -51,7 +50,6 @@
                         <a href="{{ route('admin.invoices.index') }}" class="block px-4 py-2 text-sm text-gray-600 hover:text-indigo-600">Tagihan</a>
                     </div>
                 </div>
-
                 <a href="{{ route('admin.maintenance.index') }}" class="block px-4 py-3 rounded-xl font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Maintenance</a>
                 <a href="{{ route('admin.notifications.index') }}" class="block px-4 py-3 rounded-xl font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Notifikasi</a>
                 <a href="{{ route('admin.reports.index') }}" class="block px-4 py-3 rounded-xl font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Laporan</a>
@@ -59,14 +57,14 @@
         </aside>
 
         <main id="mainContent" class="flex-1 p-6 md:p-10 transition-all-300">
-            
+            {{-- FILTER --}}
             <form action="{{ route('admin.dashboard') }}" method="GET" id="filterDashboard" class="mb-6">
                 <input type="hidden" name="range" id="rangeInput" value="{{ $range ?? 'bulan' }}">
                 <select name="kost_id" onchange="document.getElementById('filterDashboard').submit()" 
                         class="bg-white border border-gray-200 p-3 rounded-xl font-bold text-sm outline-none shadow-sm cursor-pointer hover:border-indigo-300 transition-all">
                     <option value="">Semua Cabang</option>
                     @foreach($kosts as $k)
-                        <option value="{{ $k->id }}" {{ $selectedKostId == $k->id ? 'selected' : '' }}>
+                        <option value="{{ $k->id }}" {{ ($selectedKostId ?? '') == $k->id ? 'selected' : '' }}>
                             {{ $k->name }}
                         </option>
                     @endforeach
@@ -82,20 +80,21 @@
                 </div>
             </div>
 
+            {{-- STATS CARDS --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
                 <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
                     <h4 class="text-gray-500 text-sm font-semibold mb-2">Total Kamar</h4>
-                    <div class="text-3xl font-extrabold mb-1">{{ $totalKamar }}</div>
+                    <div class="text-3xl font-extrabold mb-1">{{ $totalKamar ?? 0 }}</div>
                     <small class="text-gray-400 font-medium">Semua unit</small>
                 </div>
                 <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
                     <h4 class="text-gray-500 text-sm font-semibold mb-2">Kamar Terisi</h4>
-                    <div class="text-3xl font-extrabold mb-1">{{ $kamarTerisi }}</div>
-                    <small class="text-gray-400 font-medium">{{ $okupansi }}% Okupansi</small>
+                    <div class="text-3xl font-extrabold mb-1">{{ $kamarTerisi ?? 0 }}</div>
+                    <small class="text-gray-400 font-medium">{{ $okupansi ?? 0 }}% Okupansi</small>
                 </div>
                 <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
                     <h4 class="text-gray-500 text-sm font-semibold mb-2">Kamar Kosong</h4>
-                    <div class="text-3xl font-extrabold mb-1">{{ $kamarKosong }}</div>
+                    <div class="text-3xl font-extrabold mb-1">{{ $kamarKosong ?? 0 }}</div>
                     <small class="text-gray-400 font-medium">Tersedia</small>
                 </div>
                 <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
@@ -105,31 +104,30 @@
                 </div>
             </div>
 
+            {{-- VISUALISASI CABANG KOST --}}
             <h2 class="text-xl font-extrabold mb-6">Visualisasi Cabang Kost</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
                 @foreach($kosts as $kost)
                 <div class="bg-white rounded-[32px] overflow-hidden shadow-sm border border-gray-100 group hover:shadow-xl transition-all duration-500">
                     <div class="relative h-64 overflow-hidden">
                         @if($kost->image)
-                            @php $kostImages = explode(', ', $kost->image); @endphp
-                            <img src="{{ asset('uploads/kosts/' . $kostImages[0]) }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="{{ $kost->name }}">
+                            <img src="{{ asset('uploads/kosts/' . explode(', ', $kost->image)[0]) }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
                         @else
-                            <div class="w-full h-full bg-indigo-100 flex items-center justify-center text-indigo-400">
-                                <span class="text-sm font-bold uppercase italic">Foto Cabang Belum Ada</span>
-                            </div>
+                            <div class="w-full h-full bg-indigo-100 flex items-center justify-center text-indigo-400 font-bold italic">Tanpa Foto</div>
                         @endif
-                        
+
                         <div class="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-sm">
                             <span class="text-xs font-extrabold text-indigo-600 tracking-wider uppercase">CABANG {{ $kost->name }}</span>
                         </div>
 
                         @php
-                            $roomCount = $kost->rooms_count ?? 0;
-                            $occupiedCount = $kost->rooms_occupied_count ?? 0;
-                            $percent = $roomCount > 0 ? round(($occupiedCount / $roomCount) * 100) : 0;
+                            $totalR = $kost->rooms ? $kost->rooms->count() : 0;
+                            $occR = $kost->rooms ? $kost->rooms->where('status', 'occupied')->count() : 0;
+                            $perc = $totalR > 0 ? round(($occR / $totalR) * 100) : 0;
                         @endphp
+                        
                         <div class="absolute bottom-4 right-4 bg-indigo-600 text-white px-3 py-1 rounded-full text-[10px] font-bold shadow-lg">
-                            {{ $percent }}% Terisi
+                            {{ $perc }}% Terisi ({{ $occR }}/{{ $totalR }})
                         </div>
                     </div>
 
@@ -137,39 +135,37 @@
                         <div class="flex justify-between items-start mb-2">
                             <h3 class="text-lg font-bold text-gray-800">{{ $kost->name }}</h3>
                             <span class="text-indigo-600 font-bold text-sm">
-                                Rp {{ number_format($kost->price_start ?? 0, 0, ',', '.') }}<span class="text-gray-400 font-normal text-xs">/bln</span>
+                                @php $minP = $kost->rooms ? $kost->rooms->min('price') : 0; @endphp
+                                Rp {{ number_format($minP, 0, ',', '.') }}<span class="text-gray-400 font-normal text-xs">/bln</span>
                             </span>
                         </div>
-                        <p class="text-sm text-gray-500 mb-6 line-clamp-2 italic">{{ $kost->address ?? 'Alamat belum diinput.' }}</p>
-                        
-                        <div class="flex flex-wrap gap-2 mb-4">
-                            <div class="bg-gray-50 px-3 py-2 rounded-xl border border-gray-100 flex items-center gap-2">
-                                <span class="text-indigo-600 text-xs font-bold">●</span>
-                                <span class="text-[11px] font-bold text-gray-600 uppercase">{{ $roomCount }} Unit Kamar</span>
-                            </div>
-
-                            @if($kost->description)
-                                @foreach(explode(', ', $kost->description) as $fac)
-                                <div class="bg-green-50 px-3 py-2 rounded-xl border border-green-100 flex items-center gap-2">
-                                    <span class="text-green-600 text-xs font-bold">✓</span>
-                                    <span class="text-[11px] font-bold text-green-700 uppercase">{{ $fac }}</span>
-                                </div>
-                                @endforeach
-                            @else
-                                <div class="bg-green-50 px-3 py-2 rounded-xl border border-green-100 flex items-center gap-2">
-                                    <span class="text-green-600 text-xs font-bold">✓</span>
-                                    <span class="text-[11px] font-bold text-green-700 uppercase">WiFi & Parkir Luas</span>
-                                </div>
-                            @endif
-                        </div>
+                        <p class="text-sm text-gray-500 mb-4 italic line-clamp-1">{{ $kost->address }}</p>
                     </div>
                 </div>
                 @endforeach
             </div>
 
+            {{-- ANALISIS TRANSAKSI --}}
+            <h2 class="text-xl font-extrabold mb-6">Analisis Transaksi & Pendapatan</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+                <div class="lg:col-span-2 bg-white p-8 rounded-[32px] shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-gray-800 mb-6">Grafik Penghasilan (IDR)</h3>
+                    <canvas id="incomeChart" height="120"></canvas>
+                </div>
+                <div class="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100 text-center">
+                    <h3 class="font-bold text-gray-800 mb-6">Sumber Pembayaran</h3>
+                    <div class="relative h-48">
+                        <canvas id="paymentMethodChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            
+
+            {{-- CHART OKUPANSI & AKTIVITAS --}}
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                    <h3 class="text-lg font-extrabold mb-6">Tingkat Hunian Mingguan</h3>
+                    <h3 class="text-lg font-extrabold mb-6">Tingkat Hunian Mingguan (%)</h3>
                     <canvas id="occupancyChart" height="150"></canvas>
                 </div>
                 <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
@@ -216,6 +212,42 @@
                 });
             });
 
+            // CHART INCOME
+            new Chart(document.getElementById('incomeChart'), {
+                type: 'bar',
+                data: {
+                    labels: {!! json_encode($incomeLabels ?? ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun']) !!},
+                    datasets: [{
+                        label: 'Penghasilan',
+                        data: {!! json_encode($incomeValues ?? [0,0,0,0,0,0]) !!},
+                        backgroundColor: '#4f46e5',
+                        borderRadius: 10,
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, grid: { color: '#f3f4f6' } } }
+                }
+            });
+
+            // CHART PAYMENT
+            new Chart(document.getElementById('paymentMethodChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Transfer', 'E-Wallet', 'Tunai'],
+                    datasets: [{
+                        data: {!! json_encode($paymentMethods ?? [0,0,0]) !!},
+                        backgroundColor: ['#4f46e5', '#38bdf8', '#fbbf24'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    plugins: { legend: { position: 'bottom' } },
+                    maintainAspectRatio: false
+                }
+            });
+
+            // CHART OCCUPANCY
             new Chart(document.getElementById('occupancyChart'), {
                 type: 'line',
                 data: {
@@ -242,4 +274,4 @@
         });
     </script>
 </body>
-</html> 
+</html>

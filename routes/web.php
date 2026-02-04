@@ -15,105 +15,102 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\AdminBranchRoomController;
 use App\Http\Controllers\Admin\AdminPaymentController;
 use App\Http\Controllers\Admin\AdminDashboardController;
+use Illuminate\Support\Facades\Http;
 
+/*
+|--------------------------------------------------------------------------
+| PUBLIC ROUTES
+|--------------------------------------------------------------------------
+*/
 Route::get('/', function () {
     return view('welcome');
 });
 
-// 1. PENGATUR REDIRECT
-Route::get('/redirect', [RedirectController::class, 'index'])
-    ->middleware('auth')
-    ->name('redirect');
-
-// 2. DASHBOARD USER
-Route::get('/dashboard', [BranchController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('dashboard');
-
-// 3. DETAIL CABANG
 Route::get('/branch/{id}', [BranchController::class, 'show'])->name('branch.show');
+Route::get('/payment/{id}', [RoomController::class, 'showPayment'])->name('payment.show');
 
 /*
 |--------------------------------------------------------------------------
-| AUTHENTICATED USER ROUTES
+| AUTHENTICATED USER ROUTES (Penyewa)
 |--------------------------------------------------------------------------
 */
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/redirect', [RedirectController::class, 'index'])->name('redirect');
+    Route::get('/dashboard', [BranchController::class, 'index'])->name('dashboard');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    Route::post('/booking', [BookingController::class, 'store']);
-    Route::get('/my-bills', [BillController::class, 'index']);
-    Route::get('/bill/{bill}/pay', [BillController::class, 'pay'])->name('bill.pay');
-    
-    // Ini rute simpan bukti yang sudah support ID Booking maupun Bill
-    Route::post('/bill/{bill}/pay', [BillController::class, 'storePayment'])->name('bill.pay.store');
-    
-    // Route Kirim Keluhan Maintenance untuk User
-    Route::post('/maintenance/send', [MaintenanceController::class, 'store'])->name('maintenance.store');
-
-    // FITUR TAMBAHAN: Riwayat Booking
+    Route::post('/booking/store', [BookingController::class, 'store'])->name('booking.store');
     Route::get('/booking/history', [BookingController::class, 'history'])->name('booking.history');
+    Route::get('/booking/payment-detail/{id}', [BookingController::class, 'showPaymentDetail'])->name('booking.payment_detail');
+    
+    Route::get('/my-bills', [BillController::class, 'index'])->name('my-bills');
+    Route::get('/bill/{bill}/pay', [BillController::class, 'pay'])->name('bill.pay');
+    Route::post('/bill/{bill}/pay', [BillController::class, 'storePayment'])->name('bill.pay.store');
+
+    Route::post('/maintenance/send', [MaintenanceController::class, 'store'])->name('maintenance.store');
 });
 
 /*
 |--------------------------------------------------------------------------
-| ADMIN ROUTES (Grup Terpadu)
+| ADMIN ROUTES (Pemilik Kost)
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'admin'])
     ->prefix('admin')
     ->as('admin.')
     ->group(function () {
-        // Dashboard
+        
+        // 1. Dashboard Admin
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
         Route::post('/rooms/update-status', [AdminDashboardController::class, 'updateStatus'])->name('rooms.updateStatus');
 
-        // Pembayaran & Verifikasi
+        // 2. Verifikasi Pembayaran (AdminPaymentController)
         Route::get('/payments', [AdminPaymentController::class, 'index'])->name('payments.index');
-        // FITUR TAMBAHAN: Tombol Approve & Reject di sisi Admin
         Route::post('/payments/{id}/approve', [AdminPaymentController::class, 'approve'])->name('payments.approve');
         Route::post('/payments/{id}/reject', [AdminPaymentController::class, 'reject'])->name('payments.reject');
 
-        // Manajemen Cabang & Kamar (Dipusatkan di AdminBranchRoomController)
+        // 3. Manajemen Cabang & Kamar
         Route::get('/branches', [AdminBranchRoomController::class, 'index'])->name('branches.index');
         Route::post('/branches/store', [AdminBranchRoomController::class, 'storeKost'])->name('branches.store');
         Route::post('/rooms/store', [AdminBranchRoomController::class, 'storeRoom'])->name('rooms.store');
 
-        // Penyewa & Tagihan
+        // 4. Penyewa (Tenants)
         Route::get('/tenants', [AdminTenantController::class, 'index'])->name('tenants.index');
         Route::get('/get-tenants/{kost_id}', [AdminTenantController::class, 'getTenantsByBranch']);
-        Route::get('/invoices', [AdminBillController::class, 'index'])->name('invoices.index');
-        Route::get('/get-bills/{kost_id}', [AdminBillController::class, 'getBillsByBranch']);
 
-        // Notifikasi & Laporan
+        // 5. Tagihan (Invoices) & Aksi Tagihan
+        Route::get('/invoices', [AdminBillController::class, 'index'])->name('invoices.index');
+        Route::post('/bill-reminder/{id}', [AdminBillController::class, 'sendReminder'])->name('bill.reminder');
+        
+        // FIX: Mengubah 'ByBranch' menjadi 'getBillsByBranch' agar sesuai dengan Controller
+        Route::get('/get-bills/{kost_id}', [AdminBillController::class, 'getBillsByBranch']);
+        
+        // Route untuk aksi tombol (Konfirmasi & Hapus)
+        Route::post('/bill-confirm/{id}', [AdminBillController::class, 'confirm'])->name('bill.confirm');
+        Route::delete('/bill-delete/{id}', [AdminBillController::class, 'destroy'])->name('bill.destroy');
+
+        // 6. Notifikasi & Laporan
         Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
         Route::get('/reports', [AdminReportController::class, 'index'])->name('reports.index');
 
-        // Maintenance Admin
+        // 7. Maintenance (Keluhan)
         Route::get('/maintenance', [MaintenanceController::class, 'index'])->name('maintenance.index');
         Route::put('/maintenance/{id}/update-status', [MaintenanceController::class, 'updateStatus'])->name('maintenance.update');
 });
 
-// Route Payment & Booking Luar (Tanpa Prefix Admin)
-Route::get('/payment/{room_id}', [BookingController::class, 'showPayment'])->name('payment.show');
-Route::post('/payment/process', [BookingController::class, 'processPayment'])->name('payment.process');
-Route::post('/booking/store', [BookingController::class, 'store'])->name('booking.store');
-
-//Route buat payment room
-Route::get('payment/{id}', [RoomController::class, 'showPayment'])->name('payment.show');
-
-//Route buat bayar beneran
-Route::get('/booking/payment-detail/{id}', [App\Http\Controllers\BookingController::class, 'showPaymentDetail'])->name('booking.payment_detail');
-
-
+/*
+|--------------------------------------------------------------------------
+| TESTING & OTHERS
+|--------------------------------------------------------------------------
+*/
 Route::get('/test-wa', function () {
     Http::post('http://localhost:3000/send-message', [
-        'phone' => '6289506700308', // ganti nomor kamu
-        'message' => 'maul ah ah ah'
+        'phone' => '6289506700308', 
+        'message' => 'Test Pesan dari Sin Kost An'
     ]);
-
     return 'Pesan WA sudah dikirim!';
 });
 

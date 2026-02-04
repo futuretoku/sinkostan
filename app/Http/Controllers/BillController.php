@@ -91,4 +91,29 @@ class BillController extends Controller
                 ->with('success', 'Pembayaran tagihan dikirim, menunggu verifikasi admin');
         }
     }
+
+    public function confirm($id) {
+    $bill = Bill::findOrFail($id);
+    $bill->update(['status' => 'paid']);
+    
+    // Update juga status di tabel payments jika ada
+    Payment::where('bill_id', $id)->update(['status' => 'success']);
+
+    return response()->json(['message' => 'Pembayaran berhasil dikonfirmasi!']);
+}
+
+public function destroy($id) {
+    $bill = Bill::with('booking.room')->findOrFail($id);
+    
+    // Ambil room_id dari relasi booking
+    $room = $bill->booking->room;
+    
+    // Ubah status kamar kembali menjadi available
+    $room->update(['status' => 'available']);
+    
+    // Hapus booking dan tagihannya (CASCADE akan menghapus bill otomatis jika setup SQL-nya benar)
+    $bill->booking->delete(); 
+
+    return response()->json(['message' => 'Tagihan dihapus dan kamar kembali tersedia.']);
+}
 }

@@ -61,8 +61,8 @@ class AdminPaymentController extends Controller
     {
         $payment = Payment::with('bill.booking.room')->findOrFail($id);
 
-        // 1. Update status Payment jadi failed
-        $payment->update(['status' => 'failed']);
+        // 1. Update status Payment jadi rejected
+        $payment->update(['status' => 'rejected']);
 
         if ($payment->bill) {
             $booking = $payment->bill->booking;

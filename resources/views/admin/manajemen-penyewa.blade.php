@@ -1,34 +1,43 @@
-<x-app-layout>
-    <div class="min-h-screen bg-[#F2F4F7] p-8">
-        {{-- Tombol Kembali --}}
-        <a href="{{ route('admin.dashboard') }}" class="inline-block bg-[#7C3AED] text-white px-6 py-2 rounded-lg font-medium shadow-sm hover:bg-[#6D28D9] mb-8 transition-colors">
-            Kembali
-        </a>
+<body class="bg-[#f5f7fb] text-gray-800 overflow-x-hidden">
+    <div id="menuOverlay" class="fixed inset-0 bg-black/20 opacity-0 pointer-events-none z-[998] transition-opacity duration-300"></div>
 
-        <div class="bg-white rounded-[2.5rem] p-10 shadow-sm border border-gray-100">
-            <h1 class="text-2xl font-bold text-[#344054] mb-8">Manajemen Penyewa</h1>
+    @include('partials.navbar')
 
-            {{-- Dropdown Pilih Cabang --}}
-            <div class="relative mb-10">
-                <select id="branch-select" class="w-full appearance-none bg-white border border-gray-200 rounded-2xl py-4 px-6 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer shadow-sm">
-                    <option value="">Pilih Cabang Kost</option>
-                    @foreach($branches as $branch)
-                        <option value="{{ $branch->id }}">{{ $branch->name }} - {{ $branch->address }}</option>
-                    @endforeach
-                </select>
-                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-6 text-gray-400">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+    <div class="flex pt-20">
+        @include('partials.sidebar')
+
+        <main id="mainContent" class="flex-1 p-6 md:p-10 transition-all-300">
+            <div class="min-h-screen">
+                {{-- Tombol Kembali --}}
+                <a href="{{ route('admin.dashboard') }}" class="inline-block bg-[#7C3AED] text-white px-6 py-2 rounded-lg font-medium shadow-sm hover:bg-[#6D28D9] mb-8 transition-colors">
+                    Kembali
+                </a>
+
+                <div class="bg-white rounded-[2.5rem] p-10 shadow-sm border border-gray-100">
+                    <h1 class="text-2xl font-bold text-[#344054] mb-8">Manajemen Penyewa</h1>
+
+                    {{-- Dropdown Pilih Cabang --}}
+                    <div class="relative mb-10">
+                        <select id="branch-select" class="w-full appearance-none bg-white border border-gray-200 rounded-2xl py-4 px-6 text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer shadow-sm">
+                            <option value="">Pilih Cabang Kost</option>
+                            @foreach($branches as $branch)
+                                <option value="{{ $branch->id }}">{{ $branch->name }} - {{ $branch->address }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{-- Container Kartu Penyewa --}}
+                    <div id="tenant-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="col-span-full py-20 text-center">
+                            <p class="text-gray-400 italic">Silahkan pilih cabang untuk melihat daftar penyewa...</p>
+                        </div>
+                    </div>
                 </div>
             </div>
-
-            {{-- Container Kartu Penyewa --}}
-            <div id="tenant-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div class="col-span-full py-20 text-center">
-                    <p class="text-gray-400 italic">Silahkan pilih cabang untuk melihat daftar penyewa...</p>
-                </div>
-            </div>
-        </div>
+        </main>
     </div>
+
+    </body>
 
     <script>
     document.getElementById('branch-select').addEventListener('change', function() {
@@ -101,4 +110,3 @@
             });
     });
     </script>
-</x-app-layout>

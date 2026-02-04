@@ -3,20 +3,24 @@
 namespace App\Http\Controllers\Admin;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
+use App\Models\Kost; 
+use App\Models\Room; 
+use App\Models\Payment;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 class AdminDashboardController extends Controller
 {
     public function index(Request $request) {
-        $kosts = DB::table('kosts')->get();
+        // Menggunakan Eager Loading agar relasi ->rooms tersedia di Blade
+        $kosts = Kost::with('rooms')->get();
+        
         $selectedKostId = $request->get('kost_id');
         $range = $request->get('range', 'bulan'); 
 
-        // --- 1. Logika untuk Data Kamar ---
-        $query = DB::table('rooms');
+        // --- 1. Logika untuk Data Kamar (Stats Cards) ---
+        $query = Room::query();
         if ($selectedKostId) {
             $query->where('kost_id', $selectedKostId);
         }
@@ -28,17 +32,17 @@ class AdminDashboardController extends Controller
         $okupansi = $totalKamar > 0 ? round(($kamarTerisi / $totalKamar) * 100) : 0;
 
         // --- 2. Logika untuk Data Pemasukan ---
-        $pemasukanQuery = DB::table('payments')
-            ->join('bills', 'payments.bill_id', '=', 'bills.id')
+        // Query disesuaikan dengan struktur JOIN yang benar di database Anda
+        $pemasukanQuery = Payment::join('bills', 'payments.bill_id', '=', 'bills.id')
             ->join('bookings', 'bills.booking_id', '=', 'bookings.id')
             ->join('rooms', 'bookings.room_id', '=', 'rooms.id')
-            ->where('payments.status', 'confirmed');
+            ->where('payments.status', 'success');
 
         if ($selectedKostId) {
             $pemasukanQuery->where('rooms.kost_id', $selectedKostId);
         }
 
-        // FILTER RANGE WAKTU
+        // Filter Waktu
         if ($range == 'minggu') {
             $pemasukanQuery->whereBetween('payments.updated_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]);
         } elseif ($range == 'bulan') {
@@ -50,17 +54,33 @@ class AdminDashboardController extends Controller
 
         $pemasukan = $pemasukanQuery->sum('payments.amount');
 
+        // --- 3. Data untuk Grafik (Disesuaikan dengan Nama Kolom Database) ---
+        $incomeLabels = ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4'];
+        $incomeValues = [0, 0, 0, (int)$pemasukan]; 
+        
+        // PERBAIKAN DISINI: Nama kolom adalah 'method' dan value 'ewallet'
+        $paymentMethods = [
+            Payment::where('method', 'transfer')->count(),
+            Payment::where('method', 'ewallet')->count(),
+            Payment::where('method', 'cash')->count(),
+        ];
+
         return view('admin.dashboard', compact(
-            'kosts', 'totalKamar', 'kamarTerisi', 'kamarKosong', 'okupansi', 'selectedKostId', 'pemasukan', 'range'
+            'kosts', 
+            'totalKamar', 
+            'kamarTerisi', 
+            'kamarKosong', 
+            'okupansi', 
+            'selectedKostId', 
+            'pemasukan', 
+            'range',
+            'incomeLabels',
+            'incomeValues',
+            'paymentMethods'
         ));
     }
 
-    /**
-     * FUNGSI BARU: Simpan Kamar Baru (Manajemen Kamar)
-     * Menangani upload gambar dan fasilitas
-     */
     public function storeRoom(Request $request) {
-        // 1. Validasi Input
         $request->validate([
             'kost_id' => 'required',
             'room_number' => 'required',
@@ -68,23 +88,11 @@ class AdminDashboardController extends Controller
             'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048', 
         ]);
 
-        // 2. Olah Fasilitas (Array Checkbox ke String)
-        $facilities = "";
-        if ($request->has('facilities')) {
-            $facilities = implode(', ', $request->facilities);
-        }
-
-        // 3. Olah Gambar (Simpan File ke storage/app/public/rooms)
-        $imagePath = null;
-        if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('rooms', 'public');
-        }
-
-        // 4. Harga Otomatis (Elite vs Standard)
+        $facilities = $request->has('facilities') ? implode(', ', $request->facilities) : "";
+        $imagePath = $request->hasFile('image') ? $request->file('image')->store('rooms', 'public') : null;
         $price = ($request->type == 'Elite') ? 1500000 : 800000;
 
-        // 5. Insert ke Database
-        DB::table('rooms')->insert([
+        Room::create([
             'kost_id' => $request->kost_id,
             'room_number' => $request->room_number,
             'type' => $request->type,
@@ -92,11 +100,9 @@ class AdminDashboardController extends Controller
             'image' => $imagePath,
             'price' => $price,
             'status' => 'available',
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
 
-        return redirect()->back()->with('success', 'Kamar baru berhasil ditambahkan!');
+        return redirect()->back()->with('success', 'Kamar berhasil ditambahkan!');
     }
 
     public function updateStatus(Request $request) {
@@ -105,11 +111,10 @@ class AdminDashboardController extends Controller
             'status' => 'required'
         ]);
 
-        DB::table('rooms')->where('id', $request->room_id)->update([
+        Room::where('id', $request->room_id)->update([
             'status' => $request->status,
-            'updated_at' => now()
         ]);
 
-        return redirect()->back()->with('success', 'Status kamar berhasil diperbarui!');
+        return redirect()->back()->with('success', 'Status berhasil diperbarui!');
     }
 }

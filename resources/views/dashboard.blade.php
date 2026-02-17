@@ -68,40 +68,37 @@
                 </p>
 
   <div class="flex flex-wrap gap-2 mt-4">
-    {{-- Tipe Kamar: Mengambil 'type' unik dari semua kamar di cabang ini --}}
-    @if(isset($branch->rooms) && $branch->rooms->isNotEmpty())
-        @foreach($branch->rooms->pluck('type')->unique() as $roomType)
-            @if($roomType)
-                <span class="bg-indigo-600 text-white text-[9px] font-extrabold px-3 py-1 rounded-lg uppercase shadow-sm">
-                    {{ $roomType }}
-                </span>
-            @endif
-        @endforeach
-    @endif
-
-    {{-- Fasilitas: Dari kolom description yang dipisah koma --}}
-    @if($branch->description)
-        @foreach(explode(', ', $branch->description) as $feature)
-            <span class="bg-[#dbeafe] text-[#4338ca] text-[9px] font-extrabold px-3 py-1 rounded-lg uppercase">
-                {{ $feature }}
-            </span>
-        @endforeach
+    @if (isset($branch->daftar_tipe) && $branch->daftar_tipe !== null ) 
+    
+    @foreach (explode(',' , $branch->daftar_tipe) as $roomtype)
+        <span class="bg-indigo  text-white text-[9px] font-extrabold px-3 py-1  rounded-lg uppercase shadow-sm ">
+            {{$roomtype}}
+        </span>
+        @endforeach 
+    
     @else
-        {{-- Fallback jika data kamar & deskripsi benar-benar kosong --}}
-        @if(!isset($branch->rooms) || $branch->rooms->isEmpty())
-            <span class="bg-slate-200 text-slate-500 text-[9px] font-bold px-3 py-1 rounded-lg uppercase">STANDAR</span>
-        @endif
-    @endif
+    <span class="bg-slate-500  text-slate-200 text-[9px] px-3 py-1 rounded-lg uppercase ">
+        STANDARRRR
+    </span> 
+    @endif 
+
+    @if($branch->description)
+    @foreach(explode(',' , $branch->description) as $feature)
+    <span class=" bg-[#dbeafe] text-[#4338ca] text-[9px] font-extrabold px-3 py-1 rounded-g uppercase ">
+        {{ $feature }}
+    </span>
+@endforeach
+@endif
 </div>
 
                 <div class="flex justify-between items-center mt-6">
                     <div class="flex flex-col">
     <span class="text-[10px] text-slate-400 font-bold uppercase">Price Range</span>
     <span class="text-[#4338ca] font-extrabold text-lg">
-        @if($branch->price_min && $branch->price_max)
-            Rp {{ number_format($branch->price_min/1000000, 1) }}jt - {{ number_format($branch->price_max/1000000, 1) }}jt
-        @else
-            Rp {{ number_format($branch->price_min ?? 0, 0, ',', '.') }}
+        @if($branch->harga_terendah )
+            RP {{ number_format($branch->harga_terendah/100000, 2) }} rb - {{ number_format ($branch->harga_tertinggi/1000000, 0) }} jt
+        @else 
+            <span class="text-slate-400 italic text-sm">Belum ada kamar</span>
         @endif
     </span>
 </div>

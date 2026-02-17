@@ -22,78 +22,89 @@ class BookingController extends Controller
 
     /**
      * Menampilkan Halaman Detail Pembayaran (Tampilan Barcode/Rekening)
-     * URL: /booking/payment-detail/{id}
      */
     public function showPaymentDetail($id)
     {
-        // 1. Ambil data booking
         $booking = Booking::with('room')->findOrFail($id);
         
-        // 2. Hitung total harga untuk ditampilkan di desain detail
+        // Jika pelanggan pilih cash, tidak perlu halaman detail pembayaran (barcode/rek)
+        if ($booking->payment_method == 'cash') {
+            return redirect()->route('booking.history')->with('info', 'Silakan lakukan pembayaran tunai di lokasi.');
+        }
+
         $booking->total_price = $booking->room->price * $booking->duration_months;
 
-        // 3. Pastikan mengarah ke file payment-detail.blade.php
         return view('user.payment-detail', compact('booking'));
     }
 
     /**
      * Proses Simpan Booking & Generate Tagihan
-     * URL: /booking/store
      */
     public function store(Request $request)
     {
-        // 1. Validasi Input
         $request->validate([
             'room_id' => 'required|exists:rooms,id',
             'duration_months' => 'required|integer|min:1',
-            'payment_method' => 'required'
+            'payment_method' => 'required' 
         ]);
 
+        $method = $request->payment_method == 'cod' ? 'cash' : $request->payment_method;
         $startDate = $request->start_date ?? now();
+        $duration = (int) $request->duration_months;
 
-        // 2. Simpan data booking
+        // 1. Simpan booking
         $booking = Booking::create([
             'user_id' => auth()->id(),
             'room_id' => $request->room_id,
             'start_date' => $startDate,
-            'duration_months' => (int) $request->duration_months,
-            'end_date' => Carbon::parse($startDate)->addMonths((int) $request->duration_months),
-            'payment_method' => $request->payment_method, 
+            'duration_months' => $duration,
+            'end_date' => Carbon::parse($startDate)->addMonths($duration),
+            'payment_method' => $method,
+            'status' => 'pending', 
         ]);
 
-        // 3. Update status kamar
         Room::where('id', $request->room_id)->update(['status' => 'booked']);
 
-        // 4. Generate tagihan per bulan
-        $room = Room::find( (int)$request->room_id);
-        for ($i = 0; $i < $request->duration_months; $i++) {
-            Bill::create([
+        // 2. Generate Bills & Ambil ID Bill pertama
+        $room = Room::find((int)$request->room_id);
+        $firstBillId = null;
+
+        for ($i = 0; $i < $duration; $i++) {
+            $bill = \App\Models\Bill::create([
                 'booking_id' => $booking->id,
                 'amount' => $room->price,
                 'due_date' => Carbon::parse($startDate)->addMonths($i),
                 'status' => 'unpaid', 
             ]);     
+            if($i == 0) $firstBillId = $bill->id; // Ambil ID bill pertama
         }
 
-        // 5. REDIRECT (Kunci Utama Agar URL Berubah)
-        // Ini yang akan memindahkan URL dari /booking/store ke /booking/payment-detail/ID
-        if ($request->payment_method == 'cod') {
-            return redirect()->route('dashboard')->with('success', 'Booking Berhasil!');
-        }
+        // 3. KUNCI UTAMA: Jika cash, buat record di tabel payments agar muncul di admin
+        if ($method == 'cash') {
+            \App\Models\Payment::create([
+                'bill_id' => $firstBillId,
+                'amount' => $room->price * $duration, // Total harga
+                'proof' => 'CASH_PAYMENT', // Penanda bahwa ini cash
+                'status' => 'pending',
+            ]);
 
-        
+            return redirect()->route('booking.history')
+                ->with('success', 'Booking berhasil! Silakan bayar tunai di lokasi.');
+        }
 
         return redirect()->route('booking.payment_detail', ['id' => $booking->id]);
     }
 
+    /**
+     * Menampilkan riwayat booking user
+     */
     public function history()
-{
-    // Mengambil data booking milik user yang sedang login, diurutkan dari yang terbaru
-    $bookings = Booking::with('room.branch')
-        ->where('user_id', auth()->id())
-        ->orderBy('created_at', 'desc')
-        ->get();
+    {
+        $bookings = Booking::with('room.branch')
+            ->where('user_id', auth()->id())
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-    return view('user.history', compact('bookings'));
-}
+        return view('user.history', compact('bookings'));
+    }
 }

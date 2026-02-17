@@ -98,7 +98,7 @@
                         <div class="relative w-full h-44 mb-4 overflow-hidden rounded-2xl bg-gray-100">
                             @if($room->image)
                                 @php $images = explode(', ', $room->image); @endphp
-                                <img src="{{ asset('uploads/rooms/' . $images[0]) }}" class="w-full h-full object-cover" alt="Kamar {{ $room->room_number }}">
+                                <img src="{{ asset('uploads/rooms/' . trim($images[0])) }}" class="w-full h-full object-cover" alt="Kamar {{ $room->room_number }}">
                                 @if(count($images) > 1)
                                     <span class="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded-lg font-bold">+{{ count($images)-1 }} Foto</span>
                                 @endif
@@ -113,7 +113,6 @@
                                 <h4 class="text-xl font-extrabold">{{ $room->room_number }}</h4>
                             </div>
                             
-                            {{-- LOGIKA TAMPILAN STATUS SINKRON DENGAN DATABASE --}}
                             <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase 
                                 @if($room->status == 'available') bg-green-100 text-green-600
                                 @elseif($room->status == 'booked') bg-orange-100 text-orange-600
@@ -135,10 +134,14 @@
                                 @endforeach
                             @endif
                         </div>
+
                         <div class="flex justify-between items-center border-t border-gray-50 pt-4">
                             <span class="font-bold text-indigo-600 text-sm">Rp {{ number_format($room->price, 0, ',', '.') }}</span>
                             <div class="flex gap-2">
-                                <button class="text-gray-400 hover:text-indigo-600 transition text-sm font-bold">Edit</button>
+                               <button onclick="openEditRoomModal({{ json_encode($room) }})" 
+                                class="text-indigo-600 hover:underline transition text-sm font-bold">
+                                    Edit Detail
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -154,7 +157,6 @@
         </main>
     </div>
 
-    {{-- MODAL TAMBAH CABANG --}}
     <div id="addKostModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-[2001]">
         <div class="bg-white w-full max-w-2xl rounded-[32px] p-8 shadow-2xl max-h-[95vh] overflow-y-auto no-scrollbar">
             <div class="flex justify-between items-center mb-6">
@@ -175,7 +177,7 @@
                     </div>
                     <div class="space-y-2">
                         <label class="block text-slate-700 font-bold text-sm">Link Google Maps</label>
-                        <input type="url" name="location_link" placeholder="http://maps.google.com/..." 
+                        <input type="url" name="location_link" placeholder="https://goo.gl/maps/..." 
                                class="w-full border border-gray-200 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 transition bg-gray-50">
                     </div>
                 </div>
@@ -211,7 +213,6 @@
         </div>
     </div>
 
-    {{-- MODAL TAMBAH UNIT KAMAR --}}
     <div id="addRoomModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-[2000]">
         <div class="bg-white w-full max-w-2xl rounded-[32px] p-8 shadow-2xl max-h-[95vh] overflow-y-auto no-scrollbar">
             <div class="flex justify-between items-center mb-6">
@@ -244,14 +245,13 @@
                     </div>
                 </div>
 
-                {{-- STATUS KAMAR SINKRON DENGAN DATABASE ENUM --}}
                 <div class="space-y-2">
                     <label class="block text-slate-700 font-bold text-sm">Status Kamar</label>
                     <select name="status" required class="w-full border border-gray-200 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 transition bg-white font-bold">
-                        <option value="available">Tersedia (Status Hijau)</option>
-                        <option value="booked">Dibooking (Status Oranye)</option>
-                        <option value="occupied">Terisi (Status Merah)</option>
-                        <option value="maintenance">Maintenance (Status Abu-abu)</option>
+                        <option value="available">Tersedia</option>
+                        <option value="booked">Dibooking</option>
+                        <option value="occupied">Terisi</option>
+                        <option value="maintenance">Maintenance</option>
                     </select>
                 </div>
 
@@ -279,16 +279,16 @@
                         <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="facilities[]" value="Wifi" checked> Wifi</label>
                         <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="facilities[]" value="Kasur" checked> Kasur</label>
                         <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="facilities[]" value="Lemari" checked> Lemari</label>
-                        <label class="flex items-center gap-3 text-sm"><input type="checkbox" id="fac-ac" name="facilities[]" value="AC"> AC</label>
-                        <label class="flex items-center gap-3 text-sm"><input type="checkbox" id="fac-km" name="facilities[]" value="KM Dalam"> KM Dalam</label>
-                        <label class="flex items-center gap-3 text-sm"><input type="checkbox" id="fac-tv" name="facilities[]" value="Smart TV"> Smart TV</label>
+                        <label class="flex items-center gap-3 text-sm"><input type="checkbox" class="fac-ac" name="facilities[]" value="AC"> AC</label>
+                        <label class="flex items-center gap-3 text-sm"><input type="checkbox" class="fac-km" name="facilities[]" value="KM Dalam"> KM Dalam</label>
+                        <label class="flex items-center gap-3 text-sm"><input type="checkbox" class="fac-tv" name="facilities[]" value="Smart TV"> Smart TV</label>
                     </div>
                 </div>
 
                 <div class="space-y-2">
                     <label class="block text-slate-700 font-bold text-sm">Foto Kamar (Multiple)</label>
                     <div class="border-2 border-dashed border-gray-200 rounded-2xl p-6 bg-gray-50 text-center relative hover:border-indigo-400">
-                        <input type="file" name="images[]" multiple accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="previewImages(event)">
+                        <input type="file" name="images[]" multiple accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="previewImages(event, 'imagePreviewContainer', 'imagePlaceholder')">
                         <div id="imagePlaceholder">
                             <span class="text-indigo-600 font-bold">Klik untuk upload foto</span>
                         </div>
@@ -304,8 +304,81 @@
         </div>
     </div>
 
+    <div id="editRoomModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-[2005]">
+        <div class="bg-white w-full max-w-2xl rounded-[32px] p-8 shadow-2xl max-h-[95vh] overflow-y-auto no-scrollbar">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold text-slate-700">Edit Unit Kamar</h3>
+                <button onclick="closeEditRoomModal()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
+            </div>
+            
+            <form id="editRoomForm" method="POST" enctype="multipart/form-data" class="space-y-6">
+                @csrf
+                @method('PUT')
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div class="space-y-2">
+                        <label class="block text-slate-700 font-bold text-sm">Nomor Kamar</label>
+                        <input type="text" name="room_number" id="edit_room_number" required class="w-full border border-gray-200 rounded-2xl px-4 py-3 outline-none bg-gray-50">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-slate-700 font-bold text-sm">Lantai</label>
+                        <input type="number" name="floor" id="edit_floor" required class="w-full border border-gray-200 rounded-2xl px-4 py-3 outline-none bg-gray-50">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-slate-700 font-bold text-sm">Harga Per Bulan (Rp)</label>
+                        <input type="number" name="price" id="edit_price" required class="w-full border border-gray-200 rounded-2xl px-4 py-3 outline-none bg-gray-50">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-slate-700 font-bold text-sm">Status Kamar</label>
+                        <select name="status" id="edit_status" required class="w-full border border-gray-200 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 transition bg-white font-bold">
+                            <option value="available">Tersedia</option>
+                            <option value="booked">Dibooking</option>
+                            <option value="occupied">Terisi</option>
+                            <option value="maintenance">Maintenance</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-slate-700 font-bold text-sm">Tipe Kamar</label>
+                    <select name="type" id="edit_type" class="w-full border border-gray-200 rounded-2xl px-4 py-3 outline-none bg-gray-50 font-bold">
+                        <option value="Standard">Standard</option>
+                        <option value="Elite">Elite</option>
+                    </select>
+                </div>
+
+                <div class="space-y-3 p-5 bg-gray-50 rounded-2xl">
+                    <label class="block text-slate-700 font-bold text-sm">Fasilitas</label>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4" id="edit_facilities_container">
+                        <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="facilities[]" value="Wifi"> Wifi</label>
+                        <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="facilities[]" value="Kasur"> Kasur</label>
+                        <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="facilities[]" value="Lemari"> Lemari</label>
+                        <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="facilities[]" value="AC"> AC</label>
+                        <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="facilities[]" value="KM Dalam"> KM Dalam</label>
+                        <label class="flex items-center gap-3 text-sm"><input type="checkbox" name="facilities[]" value="Smart TV"> Smart TV</label>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-slate-700 font-bold text-sm">Update Foto Kamar (Opsional)</label>
+                    <div class="border-2 border-dashed border-gray-200 rounded-2xl p-6 bg-gray-50 text-center relative hover:border-indigo-400">
+                        <input type="file" name="images[]" multiple accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="previewImages(event, 'editImagePreviewContainer', 'editImagePlaceholder')">
+                        <div id="editImagePlaceholder">
+                            <span class="text-indigo-600 font-bold">Klik untuk ganti/tambah foto</span>
+                        </div>
+                        <div id="editImagePreviewContainer" class="flex flex-wrap gap-3 mt-4 hidden"></div>
+                    </div>
+                </div>
+
+                <div class="pt-4 flex gap-3">
+                    <button type="button" onclick="closeEditRoomModal()" class="flex-1 py-3 text-gray-500 font-bold">Batal</button>
+                    <button type="submit" class="flex-1 py-3 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
-        // SIDEBAR LOGIC
+        // SIDEBAR & OVERLAY LOGIC
         document.addEventListener('DOMContentLoaded', () => {
             const sidebarToggle = document.getElementById("sidebarToggle");
             const sidebar = document.getElementById("sidebar");
@@ -325,20 +398,24 @@
 
             document.querySelectorAll('.dropdown-toggle').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    btn.nextElementSibling.classList.toggle('hidden');
+                    const menu = btn.nextElementSibling;
+                    menu.classList.toggle('hidden');
                     btn.querySelector('.arrow').classList.toggle('rotate-180');
                 });
             });
         });
 
+        // MODAL TOGGLES
         function openAddRoomModal() { document.getElementById('addRoomModal').classList.remove('hidden'); }
         function closeAddRoomModal() { document.getElementById('addRoomModal').classList.add('hidden'); }
         function openAddKostModal() { document.getElementById('addKostModal').classList.remove('hidden'); }
         function closeAddKostModal() { document.getElementById('addKostModal').classList.add('hidden'); }
+        function closeEditRoomModal() { document.getElementById('editRoomModal').classList.add('hidden'); }
 
-        function previewImages(event) {
-            const container = document.getElementById('imagePreviewContainer');
-            const placeholder = document.getElementById('imagePlaceholder');
+        // REUSABLE IMAGE PREVIEW
+        function previewImages(event, containerId, placeholderId) {
+            const container = document.getElementById(containerId);
+            const placeholder = document.getElementById(placeholderId);
             container.innerHTML = '';
             if (event.target.files.length > 0) {
                 container.classList.remove('hidden');
@@ -356,13 +433,7 @@
             }
         }
 
-        function updateFacilities(type) {
-            const ac = document.getElementById('fac-ac');
-            const km = document.getElementById('fac-km');
-            const tv = document.getElementById('fac-tv');
-            ac.checked = km.checked = tv.checked = (type === 'Elite');
-        }
-
+        // Preview khusus Kost
         function previewKostImages(event) {
             const container = document.getElementById('kostPreviewContainer');
             const placeholder = document.getElementById('kostPlaceholder');
@@ -382,6 +453,60 @@
                 });
             }
         }
+
+        // AUTO-FILL FACILITIES (TAMBAH)
+        function updateFacilities(type) {
+            const ac = document.querySelector('.fac-ac');
+            const km = document.querySelector('.fac-km');
+            const tv = document.querySelector('.fac-tv');
+            ac.checked = km.checked = tv.checked = (type === 'Elite');
+        }
+
+        // EDIT MODAL LOGIC (FULL SYNC)
+        let originalStatus = "";
+
+        function openEditRoomModal(room) {
+            const modal = document.getElementById('editRoomModal');
+            const form = document.getElementById('editRoomForm');
+            
+            // Set URL
+            form.action = `/admin/rooms/${room.id}`; 
+            
+            // Set basic fields
+            document.getElementById('edit_room_number').value = room.room_number;
+            document.getElementById('edit_floor').value = room.floor || 1;
+            document.getElementById('edit_price').value = room.price;
+            document.getElementById('edit_type').value = room.type;
+            document.getElementById('edit_status').value = room.status;
+            
+            // Set Status
+            const statusSelect = document.getElementById('edit_status');
+            statusSelect.value = room.status;
+            originalStatus = room.status; 
+
+            // Set Facilities Checkboxes
+            const facilities = room.facilities ? room.facilities.split(',').map(f => f.trim()) : [];
+            const checkboxes = document.querySelectorAll('#edit_facilities_container input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = facilities.includes(cb.value);
+            });
+
+            // Reset image previews
+            document.getElementById('editImagePreviewContainer').innerHTML = '';
+            document.getElementById('editImagePreviewContainer').classList.add('hidden');
+            document.getElementById('editImagePlaceholder').classList.remove('hidden');
+
+            modal.classList.remove('hidden');
+        }
+
+        // STATUS PROTECTION LOGIC
+        document.getElementById('edit_status').addEventListener('change', function(e) {
+            const newStatus = e.target.value;
+            if ((originalStatus === 'occupied' || originalStatus === 'booked') && newStatus === 'available') {
+                alert("Peringatan: Kamar ini memiliki penyewa aktif. Silahkan kosongkan kamar melalui Menu Penyewa agar laporan keuangan tetap akurat.");
+                e.target.value = originalStatus;
+            }
+        }); 
     </script>
 </body>
 </html>

@@ -115,11 +115,15 @@
                 </div>
 
                 <div class="flex flex-wrap gap-2">
-                    @foreach(['Kasur', 'Lemari', 'Meja', 'WiFi', 'Kamar Mandi Dalam'] as $tag)
-                    <span class="bg-indigo-50 text-indigo-600 px-4 py-1.5 rounded-full text-[11px] font-bold border border-indigo-100">
-                        {{ $tag }}
-                    </span>
-                    @endforeach
+                    @if($branch->description)
+                @foreach(explode(', ', $branch->description) as $tag)
+                            <span class="bg-indigo-50 text-indigo-600 px-4 py-1.5 rounded-full text-[11px] font-bold border border-indigo-100">
+                                {{ trim($tag) }}
+                            </span>
+                @endforeach
+                @else
+                <span class="text-slate-400 text-[11px] italic">Fasilitas standar</span>
+                @endif
                 </div>
             </div>
 

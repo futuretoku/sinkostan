@@ -2,83 +2,208 @@
 
 namespace App\Http\Controllers;
 
+use Carbon\Carbon;
+use App\Models\Room;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class RoomController extends Controller
 {
     /**
-     * Menampilkan halaman pembayaran untuk kamar tertentu.
+     * Menampilkan katalog kamar untuk User
+     * Mengurutkan berdasarkan ketersediaan (Tersedia paling atas)
+     */
+    public function index() 
+    {
+        // FIELD status digunakan agar urutan tampilan di user logis (Available dulu)
+        $rooms = Room::orderByRaw("FIELD(status, 'available', 'booked', 'occupied', 'maintenance')")->get(); 
+        return view('user.rooms.index', compact('rooms'));
+    }
+
+    /**
+     * Menampilkan halaman "Kamar Saya" untuk penyewa yang login
+     */
+    public function myRoom()
+    {
+        $userId = Auth::id();
+
+        // Mengambil data booking yang sedang berjalan
+        $myRoom = DB::table('bookings')
+            ->join('rooms', 'bookings.room_id', '=', 'rooms.id')
+            ->join('kosts', 'rooms.kost_id', '=', 'kosts.id')
+            ->select(
+                'bookings.*', 
+                'rooms.room_number', 
+                'rooms.floor', 
+                'rooms.type', 
+                'rooms.price', 
+                'rooms.facilities', 
+                'rooms.image as room_image',
+                'kosts.name as kost_name'
+            )
+            ->where('bookings.user_id', $userId)
+            ->whereIn('bookings.status', ['paid', 'booked', 'success'])
+            ->first();
+
+        if (!$myRoom) {
+            return view('user.my-room', ['myRoom' => null]);
+        }
+
+        // Ambil data tagihan terdekat yang belum dibayar
+        $nextBill = DB::table('bills')
+            ->where('booking_id', $myRoom->id)
+            ->where('status', 'unpaid')
+            ->orderBy('due_date', 'asc')
+            ->first();
+
+        // Pengolahan Gambar (Ambil gambar pertama dari string CSV)
+        $imgString = $myRoom->room_image ?? '';
+        $rawImages = preg_split('/,\s*/', $imgString, -1, PREG_SPLIT_NO_EMPTY);
+        $displayImage = 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85'; // Placeholder
+
+        if (!empty($rawImages)) {
+            $firstImg = trim($rawImages[0]);
+            if (file_exists(public_path('uploads/rooms/' . $firstImg))) {
+                $displayImage = asset('uploads/rooms/' . $firstImg);
+            }
+        }
+        $myRoom->display_image = $displayImage;
+
+        // Format Tanggal Tagihan
+        if ($nextBill) {
+            $nextBill->due_date_formatted = Carbon::parse($nextBill->due_date)->translatedFormat('d F Y');
+            $nextBill->periode_start = Carbon::parse($nextBill->due_date)->startOfMonth()->translatedFormat('d F Y');
+            $nextBill->periode_end = Carbon::parse($nextBill->due_date)->endOfMonth()->translatedFormat('d F Y');
+        }
+
+        // Format Tanggal Sewa
+        $myRoom->start_date_formatted = Carbon::parse($myRoom->start_date)->translatedFormat('d F Y');
+        $myRoom->end_date_formatted = Carbon::parse($myRoom->end_date)->translatedFormat('d F Y');
+        
+        // Hitung Sisa Waktu Kost
+        $diff = Carbon::now()->diffInMonths(Carbon::parse($myRoom->end_date), false);
+        $myRoom->remaining_months = $diff > 0 ? $diff . ' Bulan' : 'Hampir Habis';
+
+        return view('user.my-room', compact('myRoom', 'nextBill'));
+    }
+
+    /**
+     * Menampilkan halaman rincian pembayaran sebelum booking
      */
     public function showPayment($id)
     {
-        // 1. Ambil data dengan Join menggunakan Query Builder
-        // Menggabungkan tabel rooms dan kosts untuk mendapatkan nama cabang
         $room = DB::table('rooms')
             ->join('kosts', 'rooms.kost_id', '=', 'kosts.id')
             ->select('rooms.*', 'kosts.name as branch_name')
             ->where('rooms.id', $id)
             ->first();
 
-        // Jika data tidak ditemukan, hentikan proses (404)
-        if (!$room) {
-            abort(404);
+        if (!$room) abort(404);
+
+        // Proteksi: Hanya kamar status 'available' yang boleh dibooking
+        if ($room->status !== 'available') {
+            return redirect()->back()->with('error', 'Maaf, kamar ini sudah tidak tersedia.');
         }
 
-        // 2. LOGIKA PEMROSESAN GAMBAR
-        // Mengambil string gambar dari database (misal: "kamar1.jpg, kamar2.jpg")
+        // Olah Gambar untuk Galeri Kecil
         $imgString = $room->image ?? '';
-        
-        // Memecah string berdasarkan koma dan spasi sekaligus (menggunakan regex)
         $rawImages = preg_split('/,\s*/', $imgString, -1, PREG_SPLIT_NO_EMPTY);
         $validImages = [];
 
-        if (!empty($rawImages)) {
-            foreach ($rawImages as $img) {
-                $imgName = trim($img); // Bersihkan spasi sisa
-                
-                // Cek apakah file fisik ada di folder public/uploads/rooms/
-                if (file_exists(public_path('uploads/rooms/' . $imgName))) {
-                    $validImages[] = asset('uploads/rooms/' . $imgName);
-                }
+        foreach ($rawImages as $img) {
+            $imgName = trim($img);
+            if (file_exists(public_path('uploads/rooms/' . $imgName))) {
+                $validImages[] = asset('uploads/rooms/' . $imgName);
             }
         }
 
-        // 3. JIKA TIDAK ADA GAMBAR VALID, BERIKAN PLACEHOLDER
-        // Mencegah error di tampilan Blade jika array kosong
-        if (empty($validImages)) {
-            // Menggunakan placeholder kamar default
-            $validImages[] = 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85';
-        }
-
-        /**
-         * HASIL AKHIR:
-         * Kita tempelkan array gambar yang sudah valid ke properti baru bernama 'all_images'
-         */
-        $room->all_images = $validImages;
-
-        // Kirim data ke view user/payment.blade.php
+        $room->all_images = !empty($validImages) ? $validImages : ['https://images.unsplash.com/photo-1505693416388-ac5ce068fe85'];
+        
         return view('user.payment', compact('room'));
     }
 
     /**
-     * Menyimpan data booking dari form pembayaran.
+     * Proses Simpan Booking & Sinkronisasi Otomatis Status Kamar
      */
     public function storeBooking(Request $request)
     {
-        // Validasi input dari form
         $request->validate([
-            'room_id'         => 'required',
+            'room_id'         => 'required|exists:rooms,id',
             'payment_method'  => 'required',
             'duration_months' => 'required|integer|min:1',
-            'start_date'      => 'required|date'
+            'start_date'      => 'required|date|after_or_equal:today'
         ]);
 
-        // Catatan: Di sini kamu bisa menambahkan logika Insert ke tabel 'bookings' atau 'transactions'
-        // Contoh: DB::table('bookings')->insert([...]);
+        $room = DB::table('rooms')->where('id', $request->room_id)->first();
+        
+        // Cek ulang ketersediaan (menghindari tabrakan transaksi)
+        if ($room->status !== 'available') {
+            return redirect()->route('user.rooms.index')->with('error', 'Kamar baru saja dipesan orang lain.');
+        }
 
-        return "Booking Berhasil disimpan! Kamar ID: " . $request->room_id . 
-               " dengan metode: " . $request->payment_method . 
-               " selama " . $request->duration_months . " bulan.";
+        DB::transaction(function () use ($request, $room) {
+            $startDate = Carbon::parse($request->start_date);
+            $endDate = $startDate->copy()->addMonths($request->duration_months);
+
+            // 1. Simpan data booking
+            $bookingId = DB::table('bookings')->insertGetId([
+                'user_id'         => Auth::id(),
+                'room_id'         => $request->room_id,
+                'start_date'      => $request->start_date,
+                'duration_months' => $request->duration_months,
+                'end_date'        => $endDate->format('Y-m-d'),
+                'payment_method'  => $request->payment_method,
+                'status'          => 'booked', // Status awal setelah booking
+                'created_at'      => now(),
+                'updated_at'      => now(),
+            ]);
+
+            // 2. Buat tagihan pertama secara otomatis
+            DB::table('bills')->insert([
+                'booking_id' => $bookingId,
+                'amount'     => $room->price,
+                'due_date'   => $request->start_date,
+                'status'     => 'unpaid',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // 3. UPDATE STATUS KAMAR DI DATABASE
+            // Otomatis berubah jadi 'booked' agar user lain tidak bisa melihat 'available'
+            DB::table('rooms')
+                ->where('id', $request->room_id)
+                ->update(['status' => 'booked']);
+        });
+
+        return redirect()->route('user.my_room')->with('success', 'Booking Berhasil! Selesaikan pembayaran Anda.');
+    }
+
+    /**
+     * Update data kamar dari sisi Admin
+     * Digunakan untuk merubah nomor, harga, status, dan tipe via modal
+     */
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'room_number' => 'required',
+            'price'       => 'required|numeric',
+            'status'      => 'required|in:available,booked,occupied,maintenance',
+            'type'        => 'required'
+        ]);
+
+        try {
+            DB::table('rooms')->where('id', $id)->update([
+                'room_number' => $request->room_number,
+                'price'       => $request->price,
+                'status'      => $request->status, // Status yang diinput admin langsung disimpan
+                'type'        => $request->type,
+                'updated_at'  => now(),
+            ]);
+
+            return redirect()->back()->with('success', 'Data kamar berhasil diperbarui!');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Gagal memperbarui data: ' . $e->getMessage());
+        }
     }
 }

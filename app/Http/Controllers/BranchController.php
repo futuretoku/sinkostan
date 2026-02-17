@@ -18,7 +18,11 @@ class BranchController extends Controller
                 // Kamar Tersedia: Benar-benar hanya yang statusnya 'available'
                 DB::raw('SUM(CASE WHEN rooms.status = "available" THEN 1 ELSE 0 END) as tersedia'),
                 // Kamar Terisi (Okupansi): Gabungan antara yang sudah dihuni (occupied) DAN yang sudah dibooking (booked)
-                DB::raw('SUM(CASE WHEN rooms.status IN ("occupied", "booked") THEN 1 ELSE 0 END) as terisi_okupansi')
+                DB::raw('SUM(CASE WHEN rooms.status IN ("occupied", "booked") THEN 1 ELSE 0 END) as terisi_okupansi'),
+                DB::raw('MIN(rooms.price) as harga_terendah'),
+                DB::raw('MAX(rooms.price) as harga_tertinggi'),
+
+                DB::raw('GROUP_CONCAT(rooms.type SEPARATOR ", ") as room_types')
             )
             ->groupBy('kosts.id')
             ->get();

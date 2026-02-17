@@ -17,7 +17,7 @@ class NotificationController extends Controller
             ->where('status', 'pending')
             ->latest()
             ->get();
-
+            
         return view('admin.notifikasi', compact('pendingPayments'));
     }
 

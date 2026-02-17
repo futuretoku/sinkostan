@@ -54,7 +54,8 @@
 
             <nav class="space-y-6">
                 <a href="/dashboard" class="block text-slate-700 font-medium hover:text-indigo-600 transition">Daftar Kost</a>
-<a href="{{ route('booking.history') }}" class="block text-slate-700 font-medium hover:text-indigo-600 transition">Kamar Saya</a>            </nav>
+<a href="{{ route('booking.history') }}" class="block text-slate-700 font-medium hover:text-indigo-600 transition">Kamar Saya</a></nav>
+<a href="{{ route('user.maintenance.create') }}" class="block text-slate-700 font-medium hover:text-indigo-600 transition">Keluhan</a>
         </div>
         <div x-show="open" @click="open = false" class="fixed inset-0 bg-black/20 z-40"></div>
     </div>

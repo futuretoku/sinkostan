@@ -106,4 +106,58 @@ class AdminBranchRoomController extends Controller
 
     return redirect()->back()->with('success', 'Unit kamar berhasil disimpan!');
 }
+
+public function updateRoom(Request $request, $id)
+{
+    $request->validate([
+        'room_number' => 'required',
+        'price'       => 'required|numeric',
+        'floor'       => 'required|numeric',
+        'status'      => 'required|in:available,booked,occupied,maintenance',
+        'type'        => 'required'
+    ]);
+
+    try {
+        // 1. Ambil data lama untuk cek gambar
+        $room = DB::table('rooms')->where('id', $id)->first();
+        if (!$room) return redirect()->back()->with('error', 'Kamar tidak ditemukan');
+
+        $data = [
+            'room_number' => $request->room_number,
+            'price'       => $request->price,
+            'floor'       => $request->floor,
+            'status'      => $request->status,
+            'type'        => $request->type,
+            'facilities'  => $request->has('facilities') ? implode(', ', $request->facilities) : null,
+            'updated_at'  => now(),
+        ];
+
+        // 2. Handle Upload Gambar Baru (Opsional)
+        if ($request->hasFile('images')) {
+            $imageNames = [];
+            $path = public_path('uploads/rooms');
+            
+            // Buat folder jika belum ada
+            if (!File::isDirectory($path)) { 
+                File::makeDirectory($path, 0777, true, true); 
+            }
+
+            foreach ($request->file('images') as $image) {
+                $newName = 'room_' . time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
+                $image->move($path, $newName);
+                $imageNames[] = $newName;
+            }
+            
+            // Simpan gambar baru (menggantikan yang lama atau menambah, 
+            // di sini kita asumsikan mengganti total jika ada upload baru)
+            $data['image'] = implode(', ', $imageNames);
+        }
+
+        DB::table('rooms')->where('id', $id)->update($data);
+
+        return redirect()->back()->with('success', 'Data kamar berhasil diperbarui!');
+    } catch (\Exception $e) {
+        return redirect()->back()->with('error', 'Gagal memperbarui data: ' . $e->getMessage());
+    }
+}
 }

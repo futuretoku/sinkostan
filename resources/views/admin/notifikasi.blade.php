@@ -91,9 +91,15 @@
                             <div class="bg-white rounded-2xl shadow-sm hover:shadow-md transition-all-300 overflow-hidden border border-gray-100">
                                 <div class="p-6">
                                     <div class="flex items-center justify-between mb-4">
-                                        <span class="px-3 py-1 text-[10px] uppercase tracking-wider font-bold text-orange-600 bg-orange-100 rounded-full">
-                                            Pending Verification
-                                        </span>
+                                        @if($payment->proof == 'CASH_PAYMENT')
+                                            <span class="px-3 py-1 text-[10px] uppercase tracking-wider font-bold text-blue-600 bg-blue-100 rounded-full">
+                                                Cash / Bayar di Tempat
+                                            </span>
+                                        @else
+                                            <span class="px-3 py-1 text-[10px] uppercase tracking-wider font-bold text-orange-600 bg-orange-100 rounded-full">
+                                                Transfer Verification
+                                            </span>
+                                        @endif
                                         <span class="text-xs text-gray-400">{{ $payment->created_at->diffForHumans() }}</span>
                                     </div>
                                     
@@ -105,12 +111,21 @@
                                     
                                     <div class="mt-5">
                                         <p class="text-xs font-bold text-gray-400 uppercase mb-2">Bukti Pembayaran:</p>
-                                        <a href="{{ asset('storage/' . $payment->proof) }}" target="_blank" class="block group relative">
-                                            <img src="{{ asset('storage/' . $payment->proof) }}" class="w-full h-40 object-cover rounded-xl border border-gray-100 group-hover:brightness-75 transition-all">
-                                            <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <span class="bg-black/50 text-white text-xs px-3 py-1 rounded-full">Lihat Detail</span>
+                                        
+                                        {{-- LOGIKA BARU UNTUK CASH --}}
+                                        @if($payment->proof == 'CASH_PAYMENT')
+                                            <div class="w-full h-40 bg-indigo-50 rounded-xl flex flex-col items-center justify-center border border-dashed border-indigo-200 text-indigo-600">
+                                                <span class="text-4xl mb-2">💵</span>
+                                                <span class="text-[10px] font-extrabold uppercase tracking-widest">Tunai di Lokasi</span>
                                             </div>
-                                        </a>
+                                        @else
+                                            <a href="{{ asset('storage/' . $payment->proof) }}" target="_blank" class="block group relative">
+                                                <img src="{{ asset('storage/' . $payment->proof) }}" class="w-full h-40 object-cover rounded-xl border border-gray-100 group-hover:brightness-75 transition-all">
+                                                <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <span class="bg-black/50 text-white text-[10px] px-3 py-1 rounded-full uppercase font-bold">Lihat Foto</span>
+                                                </div>
+                                            </a>
+                                        @endif
                                     </div>
 
                                     <div class="mt-6 flex gap-3">

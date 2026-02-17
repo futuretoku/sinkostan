@@ -163,6 +163,18 @@
             <div class="space-y-1">
                 <p class="text-gray-400 text-[10px] uppercase tracking-widest font-bold">Tipe Kamar</p>
                 <p id="modalRoomType" class="font-bold text-slate-700 text-base">-</p>
+
+                <div class="flex flex-wrap gap-2">
+                    @if($branch->description)
+                @foreach(explode(', ', $branch->description) as $tag)
+                            <span class="bg-indigo-50 text-indigo-600 px-4 py-1.5 rounded-full text-[11px] font-bold border border-indigo-100">
+                                {{ trim($tag) }}
+                            </span>
+                @endforeach
+                @else
+                <span class="text-slate-400 text-[11px] italic">Fasilitas standar</span>
+                @endif
+                </div>
             </div>
             <div class="space-y-1">
                 <p class="text-gray-400 text-[10px] uppercase tracking-widest font-bold">Harga per Bulan</p>

@@ -24,36 +24,44 @@ class AdminBillController extends Controller
      * Mengambil data tagihan berdasarkan cabang (AJAX).
      */
     public function getBillsByBranch($kost_id)
-    {
-        $bills = Bill::whereHas('booking.room', function ($query) use ($kost_id) {
-                $query->where('kost_id', $kost_id);
-            })
-            ->with(['booking.user', 'booking.room', 'payments'])
-            ->get()
-            ->groupBy('booking.user_id')
-            ->map(function ($userBills) {
-                $firstBill = $userBills->first();
-                return [
-                    'tenant_name'  => $firstBill->booking->user->name ?? 'N/A',
-                    'room_number'  => $firstBill->booking->room->room_number ?? '-',
-                    // Tambahkan phone di sini untuk mempermudah debugging jika perlu
-                    'phone'        => $firstBill->booking->user->phone ?? null,
-                    'total_unpaid' => $userBills->where('status', '!=', 'paid')->count(),
-                    'all_bills'    => $userBills->map(function ($bill) {
-                        $latestPayment = $bill->payments->first();
-                        return [
-                            'id'         => $bill->id,
-                            'month'      => Carbon::parse($bill->due_date)->translatedFormat('F Y'),
-                            'amount'     => $bill->amount,
-                            'status'     => $bill->status,
-                            'proof_path' => $latestPayment ? $latestPayment->proof : null,
-                        ];
-                    })
-                ];
-            })->values();
+{
+    $bills = Bill::whereHas('booking.room', function ($query) use ($kost_id) {
+            $query->where('kost_id', $kost_id);
+        })
+        ->with(['booking.user', 'booking.room', 'payments'])
+        ->get()
+        // KUNCI PERBAIKAN: Gunakan groupBy('booking_id') 
+        // agar satu baris hanya untuk satu transaksi kamar yang unik
+        ->groupBy('booking_id') 
+        ->map(function ($bookingBills) {
+            $firstBill = $bookingBills->first();
+            $booking = $firstBill->booking;
 
-        return response()->json($bills);
-    }
+            // Jika booking sudah tidak aktif (misal status 'rejected' atau 'expired'),
+            // kita bisa pilih untuk tidak menampilkannya jika mau, 
+            // tapi untuk manajemen tagihan biasanya tetap ditampilkan.
+
+            return [
+                'tenant_name'  => $booking->user->name ?? 'N/A',
+                'room_number'  => $booking->room->room_number ?? '-',
+                'phone'        => $booking->user->phone ?? null,
+                // Menghitung jumlah tagihan yang belum lunas di booking ini
+                'total_unpaid' => $bookingBills->where('status', '!=', 'paid')->count(),
+                'all_bills'    => $bookingBills->map(function ($bill) {
+                    $latestPayment = $bill->payments->first();
+                    return [
+                        'id'         => $bill->id,
+                        'month'      => Carbon::parse($bill->due_date)->translatedFormat('F Y'),
+                        'amount'     => $bill->amount,
+                        'status'     => $bill->status,
+                        'proof_path' => $latestPayment ? $latestPayment->proof : null,
+                    ];
+                })
+            ];
+        })->values();
+
+    return response()->json($bills);
+}
 
     /**
      * Mengirim pengingat pembayaran via WhatsApp Bot.

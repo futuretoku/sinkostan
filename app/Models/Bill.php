@@ -2,25 +2,31 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 
 class Bill extends Model
 {
-    protected $fillable = [
-        'booking_id',
-        'amount',
-        'due_date',
-        'status'
-    ];
+    protected $fillable = ['booking_id', 'amount', 'due_date', 'status'];
 
-    public function booking()
+    public function booking() { return $this->belongsTo(Booking::class); }
+    public function payments() { return $this->hasMany(Payment::class); }
+
+    // Accessor: Format Jatuh Tempo ($nextBill->due_date_formatted)
+    public function getDueDateFormattedAttribute()
     {
-        return $this->belongsTo(Booking::class);
+        return Carbon::parse($this->due_date)->translatedFormat('d M Y');
     }
 
-    public function payments()
+    // Accessor: Periode Mulai ($nextBill->periode_start)
+    public function getPeriodeStartAttribute()
     {
-        return $this->hasMany(Payment::class);
+        return Carbon::parse($this->due_date)->subMonth()->translatedFormat('d M');
+    }
+
+    // Accessor: Periode Selesai ($nextBill->periode_end)
+    public function getPeriodeEndAttribute()
+    {
+        return Carbon::parse($this->due_date)->translatedFormat('d M Y');
     }
 }
-

@@ -15,7 +15,7 @@
             @csrf
 
             <div class="mb-4">
-                <label for="email" class="block text-sm font-semibold text-gray-700 mb-1">Username</label>
+                <label for="email" class="block text-sm font-semibold text-gray-700 mb-1">Email</label>
                 <input id="email" 
                        type="email" 
                        name="email" 
@@ -47,6 +47,14 @@
                         Lupa password?
                     </a>
                 @endif
+            </div>
+
+            <div class="mt-4 text-center">
+                <span class="text-sm text-gray-500">Belum punya akun?</span>
+                <a class="text-sm text-indigo-600 hover:text-indigo-800 font-semibold" href="{{ route('register') }}">
+                    Daftar sekarang
+                </a>
+
             </div>
         </form>
     </div>

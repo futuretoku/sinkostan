@@ -1,4 +1,4 @@
-<aside id="sidebar" class="fixed left-[-260px] top-20 bottom-0 w-[260px] bg-white border-r border-gray-200 p-6 z-[1000] transition-all-300 overflow-y-auto no-scrollbar">
+<aside id="sidebar" class="fixed left-[-260px] top-16 bottom-0 w-[260px] bg-white border-r border-gray-200 p-6 z-[1000] transition-all-300 overflow-y-auto no-scrollbar">
     <h2 class="text-indigo-600 font-extrabold text-lg mb-8 uppercase tracking-wider">Menu Utama</h2>
     <nav class="space-y-2">
         <a href="{{ route('admin.dashboard') }}" class="block px-4 py-3 rounded-xl font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600">Dashboard</a>

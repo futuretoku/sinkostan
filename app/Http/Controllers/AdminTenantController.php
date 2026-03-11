@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Kost;
 use App\Models\Booking;
 use App\Models\Room;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Notifications\PaymentStatusNotification; 
 
 class AdminTenantController extends Controller
 {
@@ -20,8 +23,7 @@ class AdminTenantController extends Controller
     }
 
     /**
-     * Mengambil data penyewa berdasarkan cabang (kost_id)
-     * Dikelompokkan per User agar satu orang tidak muncul berulang kali di list utama
+     * Mengambil data penyewa berdasarkan cabang (AJAX)
      */
     public function getTenantsByBranch($kost_id)
     {
@@ -29,69 +31,135 @@ class AdminTenantController extends Controller
                 $query->where('kost_id', $kost_id);
             })
             ->with(['user', 'room'])
+            ->latest()
             ->get()
             ->groupBy('user_id');
 
-        $formattedData = $tenants->map(function($userBookings) {
-            $firstBooking = $userBookings->first();
-            $user = $firstBooking->user;
-            
-            // Detail rincian kamar untuk ditampilkan di Modal (Pop-up)
-            $roomDetails = $userBookings->map(function($b) {
-                $endDate = Carbon::parse($b->end_date);
-                return [
+    // Kita ambil data booking, bukan user, supaya bisa dipisah per baris di tabel
+    $bookings = Booking::whereHas('room', function($query) use ($kost_id) {
+            $query->where('kost_id', $kost_id);
+        })
+        ->with(['user', 'room'])
+        ->latest()
+        ->get();
+
+    $formattedData = $bookings->map(function($b) {
+        if (!$b->user) return null;
+
+        $endDate = Carbon::parse($b->end_date);
+        
+        // Logika penentu keaktifan:
+        // Harus berstatus 'success' DAN tanggal berakhirnya belum lewat dari sekarang
+        $isAktif = ($b->status === 'success' && Carbon::now()->lt($endDate));
+
+        return [
+            'user_id' => $b->user->id,
+            'booking_id' => $b->id, // Penting untuk update status nanti
+            'name' => $b->user->name,
+            'phone' => $b->user->phone ?? '-',
+            'rooms_summary' => $b->room->room_number,
+            'room_details' => [
+                [
                     'booking_id' => $b->id,
+                    'room_id' => $b->room->id,
                     'room_number' => $b->room->room_number,
-                    // Cek apakah masa sewa sudah lewat dari waktu sekarang
-                    'status' => Carbon::now()->gt($endDate) ? 'Habis' : 'Aktif',
+                    'status' => $isAktif ? 'Aktif' : 'Habis',
                     'due_date' => $endDate->translatedFormat('d F Y')
-                ];
-            });
+                ]
+            ],
+            'is_active' => $isAktif, // Ini yang menentukan dia masuk tab mana
+            'status' => $isAktif ? 'Aktif' : 'Selesai Sewa',
+        ];
+    })->filter()->values();
 
-            return [
-                'user_id' => $user->id,
-                'name' => $user->name,
-                'phone' => $user->phone ?? '-',
-                // Gabungkan nomor-nomor kamar (Contoh: "101, 105")
-                'rooms_summary' => $userBookings->map(fn($b) => $b->room->room_number)->implode(', '),
-                'room_details' => $roomDetails,
-                'status' => $roomDetails->contains('status', 'Habis') ? 'Ada yang Habis' : 'Aktif',
-            ];
-        })->values();
-
-        return response()->json($formattedData);
-    }
+    return response()->json($formattedData);
+}
 
     /**
-     * Update status per kamar (Booking)
-     * Jika Habis: Tanggal dimajukan ke kemarin & kamar jadi 'Tersedia'
-     * Jika Aktif: Tanggal ditambah 30 hari & kamar jadi 'Terisi'
+     * Update status sewa dan kirim notifikasi otomatis
      */
     public function updateStatus(Request $request)
 {
+    DB::beginTransaction();
     try {
-        $booking = Booking::findOrFail($request->id);
-        $room = Room::find($booking->room_id);
+        // Ambil booking beserta relasi room
+        $booking = Booking::with('room')->findOrFail($request->id);
+        $room = $booking->room;
         
-        if ($request->status === 'Habis') {
-            $booking->update(['end_date' => Carbon::now()->subDay()]);
-            
+        // Memastikan input status bersih dari spasi dan huruf kecil
+        $statusRequest = strtolower(trim($request->status));
+
+        if ($statusRequest === 'habis') {
+            // 1. Update Booking agar dianggap "Selesai" oleh sistem
+            $booking->update([
+                'end_date' => Carbon::now()->subDay(), // Set kadaluarsa (kemarin)
+                'status' => 'rejected' // 'rejected' tersedia di ENUM bookings tabel kamu
+            ]);
+
+            // 2. Update status kamar menjadi 'available'
             if ($room) {
-                // COBA GANTI JADI HURUF KECIL: 'tersedia'
-                // Atau cek di phpMyAdmin kamu, kolom status pakainya 'Tersedia' atau 'tersedia'
-                $room->update(['status' => 'available']); 
+                // PENTING: Jangan masukkan 'user_id' karena kolomnya tidak ada di tabel rooms kamu
+                $room->update([
+                    'status' => 'available' 
+                ]);
             }
-        } else {
-            $booking->update(['end_date' => Carbon::now()->addDays(30)]);
+        } else if ($statusRequest === 'aktif') {
+            // 1. Perpanjang masa sewa
+            $booking->update([
+                'end_date' => Carbon::now()->addDays(30),
+                'status' => 'success' // 'success' tersedia di ENUM bookings tabel kamu
+            ]);
+
+            // 2. Update status kamar menjadi 'occupied'
             if ($room) {
-                // COBA GANTI JADI HURUF KECIL: 'terisi'
-                $room->update(['status' => 'occupied']);
+                $room->update([
+                    'status' => 'occupied'
+                ]);
             }
         }
 
+        // 3. Kirim notifikasi
+        if ($booking->user) {
+            $booking->user->notify(new PaymentStatusNotification($booking));
+        }
+
+        DB::commit();
         return response()->json(['success' => true]);
+
     } catch (\Exception $e) {
-        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        DB::rollback();
+        // Mengembalikan pesan error asli agar kamu bisa lihat di Console Browser jika gagal
+        return response()->json([
+            'success' => false, 
+            'message' => 'Error: ' . $e->getMessage()
+        ], 500);
     }
 }
+
+    /**
+     * Menghapus riwayat penyewa (membersihkan data booking)
+     */
+    public function deleteTenant($id)
+    {
+        DB::beginTransaction();
+        try {
+            $user = User::findOrFail($id);
+            
+            // Ambil semua ID kamar yang pernah di-booking user ini untuk di-reset
+            $roomIds = Booking::where('user_id', $id)->pluck('room_id');
+            Room::whereIn('id', $roomIds)->update([
+                'status' => 'available', 
+                'user_id' => null
+            ]);
+
+            // Hapus riwayat booking
+            $user->bookings()->delete(); 
+
+            DB::commit();
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
 }

@@ -2,17 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Booking;
 use App\Models\Payment;
-use App\Models\Bill;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Notifications\PaymentStatusNotification;
+use App\Notifications\AdminResponseNotification;
 
 class NotificationController extends Controller
 {
     public function index()
     {
-        // Mengambil pembayaran yang statusnya masih pending
         $pendingPayments = Payment::with(['bill.booking.user', 'bill.booking.room'])
             ->where('status', 'pending')
             ->latest()
@@ -21,45 +19,56 @@ class NotificationController extends Controller
         return view('admin.notifikasi', compact('pendingPayments'));
     }
 
-    // FUNGSI UNTUK KONFIRMASI (APPROVE)
-    public function approve($id)
-    {
-        DB::beginTransaction();
-        try {
-            $payment = Payment::findOrFail($id);
-            
-            // 1. Update status payment jadi 'success'
-            $payment->update(['status' => 'success']);
-
-            // 2. Update status bill (tagihan) jadi 'paid'
-            if ($payment->bill) {
-                $payment->bill->update(['status' => 'paid']);
+   public function approve($id)
+{
+    DB::beginTransaction();
+    try {
+        $payment = Payment::with('bill.booking.user', 'bill.booking.room')->findOrFail($id);
+        
+        // 1. Update Status Pembayaran & Kamar
+        $payment->update(['status' => 'success']);
+        if ($payment->bill) {
+            $payment->bill->update(['status' => 'paid']);
+            if ($payment->bill->booking && $payment->bill->booking->room) {
+                $payment->bill->booking->room->update(['status' => 'occupied']);
                 
-                // 3. Update status kamar jadi 'occupied' (terisi)
-                if ($payment->bill->booking && $payment->bill->booking->room) {
-                    $payment->bill->booking->room->update(['status' => 'occupied']);
-                }
+                // Update status booking menjadi success agar logic di Notification Class sinkron
+                $payment->bill->booking->update(['status' => 'success']);
             }
-
-            DB::commit();
-            return redirect()->back()->with('success', 'Pembayaran berhasil dikonfirmasi!');
-        } catch (\Exception $e) {
-            DB::rollback();
-            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
+
+        // 2. KIRIM NOTIFIKASI (Trigger Utama)
+        if ($payment->bill && $payment->bill->booking) {
+            $user = $payment->bill->booking->user;
+            // Kirim notifikasi menggunakan class yang sudah kita buat
+            $user->notify(new AdminResponseNotification($payment->bill->booking));
+        }
+
+        DB::commit();
+        return redirect()->back()->with('success', 'Pembayaran disetujui & Notifikasi terkirim!');
+    } catch (\Exception $e) {
+        DB::rollback();
+        return redirect()->back()->with('error', 'Gagal: ' . $e->getMessage());
     }
+}
 
-    // FUNGSI UNTUK TOLAK (REJECT) - INI YANG TADI ERROR
-    public function reject($id)
-    {
-        $payment = Payment::findOrFail($id);
+public function reject($id)
+{
+    try {
+        $payment = Payment::with('bill.booking.user')->findOrFail($id);
+        $payment->update(['status' => 'rejected']);
 
-        // Pastikan status 'failed' terdaftar di ENUM database kamu
-        // Jika di database nama statusnya 'cancel' atau 'rejected', ganti kata 'failed' di bawah ini
-        $payment->update([
-            'status' => 'rejected' 
-        ]);
+        if ($payment->bill && $payment->bill->booking) {
+            // Update status booking menjadi rejected
+            $payment->bill->booking->update(['status' => 'rejected']);
+            
+            // Kirim notifikasi penolakan
+            $payment->bill->booking->user->notify(new AdminResponseNotification($payment->bill->booking));
+        }
 
-        return redirect()->back()->with('success', 'Pembayaran telah ditolak.');
+        return redirect()->back()->with('success', 'Pembayaran ditolak & User telah dikabari.');
+    } catch (\Exception $e) {
+        return redirect()->back()->with('error', 'Gagal menolak pembayaran.');
     }
+}
 }

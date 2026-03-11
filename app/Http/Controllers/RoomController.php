@@ -170,7 +170,6 @@ class RoomController extends Controller
             ]);
 
             // 3. UPDATE STATUS KAMAR DI DATABASE
-            // Otomatis berubah jadi 'booked' agar user lain tidak bisa melihat 'available'
             DB::table('rooms')
                 ->where('id', $request->room_id)
                 ->update(['status' => 'booked']);
@@ -180,8 +179,53 @@ class RoomController extends Controller
     }
 
     /**
+     * PROSES PERPANJANGAN KAMAR (Fungsi Baru)
+     */
+    public function extendRoom(Request $request, $id)
+    {
+        $request->validate([
+            'months' => 'required|integer|min:1'
+        ]);
+
+        try {
+            DB::transaction(function () use ($request, $id) {
+                // 1. Ambil data booking lama
+                $booking = DB::table('bookings')->where('id', $id)->first();
+                $room = DB::table('rooms')->where('id', $booking->room_id)->first();
+
+                // 2. Hitung tanggal berakhir baru
+                $currentEndDate = Carbon::parse($booking->end_date);
+                $newEndDate = $currentEndDate->addMonths($request->months);
+
+                // 3. Update data booking
+                DB::table('bookings')
+                    ->where('id', $id)
+                    ->update([
+                        'end_date' => $newEndDate->format('Y-m-d'),
+                        'duration_months' => $booking->duration_months + $request->months,
+                        'updated_at' => now()
+                    ]);
+
+                // 4. Buat tagihan baru untuk masa perpanjangan
+                // Kita buat tagihan jatuh tempo pada saat masa sewa lama habis
+                DB::table('bills')->insert([
+                    'booking_id' => $id,
+                    'amount'     => $room->price * $request->months,
+                    'due_date'   => $booking->end_date, // Jatuh tempo di akhir periode lama
+                    'status'     => 'unpaid',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            });
+
+            return redirect()->back()->with('success', 'Kamar berhasil diperpanjang!');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Gagal memperpanjang: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Update data kamar dari sisi Admin
-     * Digunakan untuk merubah nomor, harga, status, dan tipe via modal
      */
     public function update(Request $request, $id)
     {
@@ -196,7 +240,7 @@ class RoomController extends Controller
             DB::table('rooms')->where('id', $id)->update([
                 'room_number' => $request->room_number,
                 'price'       => $request->price,
-                'status'      => $request->status, // Status yang diinput admin langsung disimpan
+                'status'      => $request->status, 
                 'type'        => $request->type,
                 'updated_at'  => now(),
             ]);

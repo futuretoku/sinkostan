@@ -17,7 +17,6 @@
 
     <div id="menuOverlay" class="fixed inset-0 bg-black/20 opacity-0 pointer-events-none z-[998] transition-opacity duration-300"></div>
 
-    {{-- Gunakan 'partial' sesuai folder di screenshot kamu --}}
     @include('partials.navbar')
 
     <div class="flex pt-20">
@@ -35,7 +34,7 @@
                     <h1 class="text-2xl font-bold text-[#344054] mb-8">Manajemen Tagihan</h1>
 
                     {{-- Dropdown Pilih Cabang --}}
-                    <div class="relative mb-10">
+                    <div class="relative mb-6">
                         <select id="branch-select" class="w-full appearance-none bg-white border border-gray-200 rounded-2xl py-4 px-6 text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer shadow-sm">
                             <option value="">Pilih Cabang Kost</option>
                             @foreach($branches as $branch)
@@ -45,6 +44,17 @@
                         <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-6 text-gray-400">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                         </div>
+                    </div>
+
+                    {{-- Search Bar --}}
+                    <div class="relative mb-10">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                        </div>
+                        <input type="text" id="search-input" onkeyup="filterTable()" placeholder="Cari nama penyewa atau nomor kamar..." 
+                            class="w-full bg-white border border-gray-200 rounded-2xl py-3 pl-12 pr-6 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-sm transition-all">
                     </div>
 
                     {{-- Tabel Tagihan --}}
@@ -85,8 +95,7 @@
                 </button>
             </div>
             
-            <div class="p-8 overflow-y-auto flex-1 bg-white" id="modalContent">
-                </div>
+            <div class="p-8 overflow-y-auto flex-1 bg-white" id="modalContent"></div>
 
             <div class="p-6 bg-gray-50 border-t border-gray-100 text-center">
                 <button onclick="closeModal()" class="text-gray-500 font-medium hover:text-gray-700">Tutup Jendela</button>
@@ -102,7 +111,11 @@
         document.getElementById('branch-select').addEventListener('change', function() {
             const branchId = this.value;
             const body = document.getElementById('bill-table-body');
+            const searchInput = document.getElementById('search-input');
             
+            // Reset Search Input saat ganti cabang
+            searchInput.value = '';
+
             if (!branchId) {
                 body.innerHTML = '<tr><td colspan="4" class="py-20 text-center text-gray-400 italic">Silahkan pilih cabang terlebih dahulu...</td></tr>';
                 return;
@@ -124,10 +137,13 @@
                     data.forEach((item, index) => {
                         body.innerHTML += `
                             <tr class="bg-[#F9FAFB] rounded-2xl overflow-hidden shadow-sm border border-gray-50">
-                                <td class="py-5 px-6 font-bold text-gray-700 rounded-l-2xl">${item.tenant_name}</td>
+                                <td class="py-5 px-6 font-bold text-gray-700 rounded-l-2xl">
+                                    ${item.tenant_name}
+                                    <span class="block text-[9px] text-gray-400 font-normal italic">Penyewa Kamar ${item.room_number}</span>
+                                </td>
                                 <td class="py-5 px-6 text-center text-gray-600 font-medium">Kamar ${item.room_number}</td>
                                 <td class="py-5 px-6 text-center">
-                                    <span class="bg-indigo-100 text-indigo-700 px-4 py-1.5 rounded-full text-xs font-black">
+                                    <span class="${item.total_unpaid > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'} px-4 py-1.5 rounded-full text-xs font-black">
                                         ${item.total_unpaid} TAGIHAN AKTIF
                                     </span>
                                 </td>
@@ -142,7 +158,34 @@
                 });
         });
 
-        // 2. Fungsi Modal
+        // 2. Fungsi Filter/Search
+        function filterTable() {
+            const input = document.getElementById("search-input");
+            const filter = input.value.toLowerCase();
+            const tableBody = document.getElementById("bill-table-body");
+            const rows = tableBody.getElementsByTagName("tr");
+
+            // Jangan filter jika tabel sedang menampilkan pesan kosong
+            if (rows.length === 1 && rows[0].cells.length === 1) return;
+
+            for (let i = 0; i < rows.length; i++) {
+                const nameCol = rows[i].getElementsByTagName("td")[0];
+                const roomCol = rows[i].getElementsByTagName("td")[1];
+                
+                if (nameCol && roomCol) {
+                    const nameText = nameCol.textContent || nameCol.innerText;
+                    const roomText = roomCol.textContent || roomCol.innerText;
+                    
+                    if (nameText.toLowerCase().indexOf(filter) > -1 || roomText.toLowerCase().indexOf(filter) > -1) {
+                        rows[i].style.display = "";
+                    } else {
+                        rows[i].style.display = "none";
+                    }
+                }
+            }
+        }
+
+        // 3. Fungsi Modal
         function openModal(index) {
             const tenant = branchData[index];
             document.getElementById('modalTitle').innerText = tenant.tenant_name;
@@ -193,7 +236,7 @@
             document.getElementById('billModal').classList.add('hidden');
         }
 
-        // 3. Aksi Buttons
+        // 4. Aksi Buttons
         function viewProof(path) {
             if (!path || path === 'null' || path === 'undefined') {
                 alert('Penyewa belum mengunggah bukti pembayaran.');
@@ -253,12 +296,10 @@
             });
         }
 
-        // Sidebar Toggle Script
+        // Sidebar Toggle
         document.getElementById('sidebarToggle').addEventListener('click', function() {
             const sidebar = document.getElementById('sidebar');
-            const main = document.getElementById('mainContent');
             const overlay = document.getElementById('menuOverlay');
-            
             sidebar.classList.toggle('left-0');
             sidebar.classList.toggle('left-[-260px]');
             overlay.classList.toggle('opacity-0');

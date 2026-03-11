@@ -1,125 +1,36 @@
-<x-app-layout>
-    <div class="min-h-screen bg-[#F2F4F7] p-8" x-data="{ openModal: null }">
-        <a href="{{ route('admin.dashboard') }}" class="inline-block bg-[#7C3AED] text-white px-6 py-2 rounded-lg font-medium shadow-sm hover:bg-[#6D28D9] mb-8">
-            Kembali
-        </a>
+@extends('layouts.app')
 
-        <div class="bg-white rounded-[2.5rem] p-10 shadow-sm border border-gray-100">
-            <h1 class="text-2xl font-bold text-[#344054] mb-8">Laporan</h1>
+@section('content')
+<div class="max-w-6xl mx-auto">
+    {{-- Tombol Kembali --}}
+    <a href="{{ route('admin.dashboard') }}" class="inline-flex items-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-sm hover:bg-indigo-700 transition-all mb-8">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        Kembali
+    </a>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div @click="openModal = 'keuangan'" class="cursor-pointer bg-white border border-gray-100 rounded-3xl p-8 shadow-sm hover:shadow-md transition-all group">
-                    <h3 class="text-xl font-bold text-[#101828] mb-2">Laporan Keuangan</h3>
-                    <p class="text-[#667085]">Ringkasan pemasukan bulanan</p>
+    <div class="bg-white rounded-[2.5rem] p-10 shadow-sm border border-gray-100">
+        <h1 class="text-3xl font-black text-gray-800 mb-2 text-center md:text-left">Pusat Laporan</h1>
+        <p class="text-gray-500 mb-10 text-center md:text-left font-medium">Pilih jenis laporan yang ingin Anda lihat atau cetak.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {{-- Opsi 1: Laporan Keuangan --}}
+            <a href="{{ route('admin.laporankeuangan-detail') }}" class="group bg-white border-2 border-gray-50 rounded-[2rem] p-8 shadow-sm hover:border-indigo-500 hover:shadow-xl hover:shadow-indigo-100 transition-all text-center">
+                <div class="w-16 h-16 bg-green-100 text-green-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 </div>
+                <h3 class="text-xl font-black text-gray-800 mb-2">Laporan Keuangan</h3>
+                <p class="text-gray-500 text-sm">Ringkasan pemasukan, riwayat transaksi, dan total pendapatan.</p>
+            </a>
 
-                <div @click="openModal = 'kamar'" class="cursor-pointer bg-white border border-gray-100 rounded-3xl p-8 shadow-sm hover:shadow-md transition-all group">
-                    <h3 class="text-xl font-bold text-[#101828] mb-2">Laporan Kamar</h3>
-                    <p class="text-[#667085]">Status kamar</p>
+            {{-- Opsi 2: Laporan Kamar & Penyewa (Digabung) --}}
+            <a href="{{ route('admin.laporankamardanpenyewa-detail') }}" class="group bg-white border-2 border-gray-50 rounded-[2rem] p-8 shadow-sm hover:border-indigo-500 hover:shadow-xl hover:shadow-indigo-100 transition-all text-center">
+                <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                 </div>
-
-                <div @click="openModal = 'penyewa'" class="cursor-pointer bg-white border border-gray-100 rounded-3xl p-8 shadow-sm hover:shadow-md transition-all group">
-                    <h3 class="text-xl font-bold text-[#101828] mb-2">Laporan Penyewa</h3>
-                    <p class="text-[#667085]">Data penyewa aktif & riwayat</p>
-                </div>
-            </div>
+                <h3 class="text-xl font-black text-gray-800 mb-2">Laporan Kamar & Penyewa</h3>
+                <p class="text-gray-500 text-sm">Status keterisian kamar dan detail data penyewa aktif.</p>
+            </a>
         </div>
-
-        <div 
-    x-show="openModal" 
-    x-transition:enter="transition ease-out duration-300"
-    x-transition:enter-start="opacity-0"
-    x-transition:enter-end="opacity-100"
-    x-transition:leave="transition ease-in duration-200"
-    x-transition:leave-start="opacity-100"
-    x-transition:leave-end="opacity-0"
-    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-    style="display: none;" 
->
-    <div 
-        @click.away="openModal = null" 
-        class="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl"
-    >
-        
-        <div x-show="openModal === 'keuangan'">
-            <h2 class="text-2xl font-bold text-[#101828] mb-6">Detail Keuangan</h2>
-            <div class="space-y-4">
-                <div class="p-4 bg-green-50 rounded-2xl mb-4">
-                    <p class="text-sm text-green-600 font-medium">Total Pemasukan</p>
-                    <p class="text-2xl font-bold text-green-700">Rp {{ number_format($totalPemasukan, 0, ',', '.') }}</p>
-                </div>
-                
-                <p class="text-sm font-bold text-gray-500 uppercase">5 Transaksi Terakhir</p>
-                <div class="divide-y divide-gray-100 max-h-40 overflow-y-auto">
-                    @forelse($pemasukanTerbaru as $bill)
-                    <div class="py-3 flex justify-between">
-                        <span class="text-gray-600">{{ $bill->booking->user->name ?? 'User' }}</span>
-                        <span class="font-semibold text-gray-800">Rp {{ number_format($bill->amount, 0, ',', '.') }}</span>
-                    </div>
-                    @empty
-                    <p class="text-gray-400 text-sm py-2">Belum ada transaksi.</p>
-                    @endforelse
-                </div>
-            </div>
-        </div>
-
-        <div x-show="openModal === 'kamar'">
-            <h2 class="text-2xl font-bold text-[#101828] mb-6">Status Detail Kamar</h2>
-            <div class="grid grid-cols-2 gap-4 mb-6">
-                <div class="p-4 bg-blue-50 rounded-2xl">
-                    <p class="text-xs text-blue-600 font-semibold uppercase">Tersedia</p>
-                    <p class="text-2xl font-bold text-blue-700">{{ $kamarTersedia }}</p>
-                </div>
-                <div class="p-4 bg-orange-50 rounded-2xl">
-                    <p class="text-xs text-orange-600 font-semibold uppercase">Terisi</p>
-                    <p class="text-2xl font-bold text-orange-700">{{ $kamarTerisi }}</p>
-                </div>
-            </div>
-
-            <p class="text-sm font-bold text-gray-500 mb-3 uppercase">Daftar Kamar</p>
-            <div class="max-h-[250px] overflow-y-auto pr-2 space-y-2">
-                @foreach($daftarKamar as $room)
-                <div class="flex justify-between items-center p-3 border border-gray-100 rounded-2xl">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold {{ $room->status == 'available' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600' }}">
-                            {{ $room->room_number }}
-                        </div>
-                        <span class="font-bold text-gray-800 text-sm">Kamar {{ $room->room_number }}</span>
-                    </div>
-                    <span class="px-2 py-1 rounded-full text-[9px] font-bold uppercase {{ $room->status == 'available' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700' }}">
-                        {{ $room->status == 'available' ? 'Kosong' : 'Isi' }}
-                    </span>
-                </div>
-                @endforeach
-            </div>
-        </div>
-
-        <div x-show="openModal === 'penyewa'">
-    <h2 class="text-2xl font-bold text-[#101828] mb-6">Penyewa Aktif</h2>
-    <div class="max-h-[300px] overflow-y-auto space-y-3">
-        @forelse($daftarPenyewaAktif as $sewa)
-        <div class="p-4 border border-gray-100 rounded-2xl flex justify-between items-center">
-            <div>
-                <p class="font-bold text-[#101828] text-sm">{{ $sewa->user->name ?? 'User N/A' }}</p>
-                <p class="text-xs text-gray-500">
-                    Kamar: {{ $sewa->room->room_number ?? '-' }} 
-                    <span class="ml-2 text-gray-400">| Selesai: {{ \Carbon\Carbon::parse($sewa->end_date)->format('d M Y') }}</span>
-                </p>
-            </div>
-            <span class="bg-green-100 text-green-700 text-[10px] px-2 py-1 rounded-full font-bold">AKTIF</span>
-        </div>
-        @empty
-        <div class="text-center py-10">
-            <p class="text-gray-400 italic text-sm">Tidak ada penyewa yang masa sewanya masih aktif.</p>
-        </div>
-        @endforelse
     </div>
 </div>
-
-        <button @click="openModal = null" class="w-full mt-8 bg-[#7C3AED] text-white py-3 rounded-xl font-bold hover:bg-[#6D28D9] transition-colors">
-            Tutup
-        </button>
-    </div>
-</div>
-    </div>
-</x-app-layout>
+@endsection

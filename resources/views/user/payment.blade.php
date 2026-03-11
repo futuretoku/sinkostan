@@ -29,6 +29,14 @@
         animation: spin 0.8s ease-in-out infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Fix Custom Select Icon agar tidak double */
+    .custom-select-clean {
+        background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M6%209l6%206%206-6%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E");
+        background-repeat: no-repeat;
+        background-position: right 1rem center;
+        background-size: 1.2em;
+    }
 </style>
 
 <div class="bg-[#f8fafc] min-h-screen p-4 md:p-12 text-slate-800">
@@ -48,7 +56,7 @@
             <div class="lg:col-span-7 bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
                 <h2 class="text-2xl font-black text-slate-800 mb-1">Detail Kamar</h2>
                 <p class="text-sm text-slate-400 mb-6">
-                    {{ $room->branch_name ?? 'Cabang Tidak Terdeteksi' }} – Lantai {{ $room->floor }}
+                    {{ $room->branch->name ?? $room->branch_name ?? 'Sin Kost' }} – Lantai {{ $room->floor }}
                 </p>
 
                 {{-- Image Slider --}}
@@ -95,7 +103,7 @@
                     @endif
                 </div>
 
-                <div class="grid grid-cols-2 gap-y-8 mb-8">
+                <div class="grid grid-cols-2 gap-y-8 mb-8 border-b border-slate-50 pb-8">
                     <div>
                         <p class="text-slate-400 text-xs uppercase tracking-widest font-bold mb-1">Nomor Kamar</p>
                         <p class="text-xl font-bold text-slate-800">{{ $room->room_number }}</p>
@@ -110,20 +118,25 @@
                     </div>
                     <div>
                         <p class="text-slate-400 text-xs uppercase tracking-widest font-bold mb-1">Status</p>
-                        <p class="text-xl font-bold text-slate-800">Tersedia</p>
+                        <p class="text-xl font-bold text-emerald-500">Tersedia</p>
                     </div>
                 </div>
 
-                <div class="flex flex-wrap gap-2">
-                    @if($branch->description)
-                @foreach(explode(', ', $branch->description) as $tag)
-                            <span class="bg-indigo-50 text-indigo-600 px-4 py-1.5 rounded-full text-[11px] font-bold border border-indigo-100">
-                                {{ trim($tag) }}
-                            </span>
-                @endforeach
-                @else
-                <span class="text-slate-400 text-[11px] italic">Fasilitas standar</span>
-                @endif
+                <div class="space-y-4">
+                    <p class="text-slate-400 text-xs uppercase tracking-widest font-bold">Fasilitas Kamar</p>
+                    <div class="flex flex-wrap gap-2">
+                        @if($room->facilities)
+                            @foreach(explode(',', $room->facilities) as $fasilitas)
+                                @if(trim($fasilitas) !== "")
+                                    <span class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-[11px] font-bold border border-indigo-100">
+                                        {{ trim($fasilitas) }}
+                                    </span>
+                                @endif
+                            @endforeach
+                        @else
+                            <span class="text-slate-400 text-xs italic">Fasilitas standar tersedia</span>
+                        @endif
+                    </div>
                 </div>
             </div>
 
@@ -138,7 +151,6 @@
                     <input type="hidden" name="start_date" value="{{ now()->format('Y-m-d') }}">
                     <input type="hidden" name="total_price" id="hidden_total" value="{{ $room->price }}">
                     
-                    {{-- Metode Pembayaran --}} 
                     <div class="space-y-3">
                         @foreach([
                             ['id' => 'transfer', 'title' => 'Transfer Bank', 'desc' => 'BCA / BRI / Mandiri', 'icon' => '💳'],
@@ -160,25 +172,19 @@
                         @endforeach
                     </div>
 
-                    {{-- Pilihan Durasi --}}
                     <div class="pt-6">
                         <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Durasi Sewa</label>
                         <div class="relative">
-                            <select id="duration_select" name="duration_months" class="w-full p-4 rounded-2xl border-2 border-slate-50 bg-slate-50/50 font-bold text-slate-700 outline-none focus:border-indigo-200 transition-all appearance-none cursor-pointer">
+                            {{-- Perbaikan: Menggunakan class custom-select-clean dan menghapus div SVG manual --}}
+                            <select id="duration_select" name="duration_months" class="custom-select-clean w-full p-4 pr-12 rounded-2xl border-2 border-slate-50 bg-slate-50/50 font-bold text-slate-700 outline-none focus:border-indigo-200 transition-all appearance-none cursor-pointer">
                                 <option value="1">1 Bulan</option>
                                 <option value="3">3 Bulan</option>
                                 <option value="6">6 Bulan</option>
                                 <option value="12">1 Tahun</option>
                             </select>
-                            <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                                </svg>
-                            </div>
                         </div>
                     </div>
 
-                    {{-- Ringkasan Biaya --}}
                     <div class="pt-8 space-y-3 border-t border-dashed border-slate-200 mt-6">
                         <div class="flex justify-between text-sm">
                             <span class="text-slate-400 font-medium">Harga per Bulan</span>
@@ -197,9 +203,6 @@
                     <button type="submit" id="btnSubmit" class="w-full bg-[#6366f1] hover:bg-[#4f46e5] text-white font-black py-5 rounded-2xl transition-all shadow-xl shadow-indigo-100 mt-8 active:scale-[0.98] flex items-center justify-center">
                         <span>Bayar Sekarang</span>
                     </button>
-                    <p class="text-[10px] text-slate-400 text-center mt-4 uppercase tracking-widest font-bold">
-                        Pemesanan akan diverifikasi secara otomatis
-                    </p>
                 </form>
             </div>
         </div>
@@ -212,41 +215,44 @@
     const displayDuration = document.getElementById('display_duration');
     const displayTotal = document.getElementById('display_total');
     const hiddenTotal = document.getElementById('hidden_total');
-    const paymentForm = document.getElementById('paymentForm');
-    const btnSubmit = document.getElementById('btnSubmit');
 
-    // 1. Logika Perhitungan Harga
+    // 1. Logika Kalkulasi Harga
     if(durationSelect) {
         durationSelect.addEventListener('change', function() {
             const months = parseInt(this.value);
             const total = pricePerMonth * months;
-            
             displayDuration.innerText = months >= 12 ? (months/12) + ' Tahun' : months + ' Bulan';
             displayTotal.innerText = 'Rp ' + new Intl.NumberFormat('id-ID').format(total);
-            hiddenTotal.value = total; // Update input hidden untuk dikirim ke backend
+            hiddenTotal.value = total; 
         });
     }
 
-    // 2. Loading State saat Submit
-    paymentForm.addEventListener('submit', function() {
-        btnSubmit.classList.add('btn-loading');
-        btnSubmit.querySelector('span').style.opacity = '0';
+    // 2. Logika Loading Button saat Submit
+    document.getElementById('paymentForm').addEventListener('submit', function() {
+        const btn = document.getElementById('btnSubmit');
+        btn.classList.add('btn-loading');
+        btn.querySelector('span').style.opacity = '0';
     });
 
-    // 3. Slider Logic (Tetap Seperti Semula)
+    // 3. Logika Image Slider
+    const slider = document.getElementById('imageSlider');
+    
     function slideImage(direction) {
-        const slider = document.getElementById('imageSlider');
         if(!slider) return;
         const scrollAmount = slider.clientWidth;
-        slider.scrollBy({ left: direction === 'next' ? scrollAmount : -scrollAmount, behavior: 'smooth' });
+        slider.scrollBy({ 
+            left: direction === 'next' ? scrollAmount : -scrollAmount, 
+            behavior: 'smooth' 
+        });
     }
 
-    const sliderElem = document.getElementById('imageSlider');
-    if(sliderElem) {
-        sliderElem.addEventListener('scroll', function() {
-            const index = Math.round(this.scrollLeft / this.clientWidth);
+    // Fungsi otomatis update titik (dots) saat slider digeser
+    if(slider) {
+        slider.addEventListener('scroll', () => {
+            const index = Math.round(slider.scrollLeft / slider.clientWidth);
+            
             document.querySelectorAll('[id^="dot-"]').forEach((dot, i) => {
-                if (i === index) {
+                if(i === index) {
                     dot.classList.add('w-6', 'bg-indigo-600');
                     dot.classList.remove('w-1.5', 'bg-slate-200');
                 } else {

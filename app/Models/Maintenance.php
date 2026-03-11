@@ -16,12 +16,15 @@ class Maintenance extends Model
     protected $fillable = [
         'user_id',
         'kost_id',
+        'room_id',
         'judul',
         'kategori',
         'deskripsi',
         'nomor_kamar',
         'status',
         'foto',
+        'foto_selesai',
+        'biaya',
     ];
 
     // Jika kamu ingin memberikan nilai default untuk status saat data baru dibuat
@@ -39,5 +42,10 @@ class Maintenance extends Model
     public function kost()
     {
         return $this->belongsTo(Kost::class, 'kost_id');
+    }
+
+    public function room()
+    {
+        return $this->belongsTo(Room::class, 'room_id');
     }
 }

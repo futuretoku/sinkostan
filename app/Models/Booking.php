@@ -17,6 +17,16 @@ class Booking extends Model
         'status'
     ];
 
+    protected $casts = [
+        'start_date' => 'date',
+        'end_date' => 'date',
+    ];
+
+     // Nilai default untuk status saat data baru dibuat
+     protected $attributes = [
+        'status' => 'pending',
+    ];
+
     public function user()
     {
         return $this->belongsTo(User::class);

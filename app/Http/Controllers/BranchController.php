@@ -2,44 +2,44 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Branch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class BranchController extends Controller
 {
     public function index()
-    {
-        // 1. Mengambil data cabang (kosts) dengan hitungan yang lebih detail
-        $dataCabang = DB::table('kosts')
-            ->leftJoin('rooms', 'kosts.id', '=', 'rooms.kost_id')
-            ->select(
-                'kosts.*',
-                DB::raw('count(rooms.id) as total_kamar'),
-                // Kamar Tersedia: Benar-benar hanya yang statusnya 'available'
-                DB::raw('SUM(CASE WHEN rooms.status = "available" THEN 1 ELSE 0 END) as tersedia'),
-                // Kamar Terisi (Okupansi): Gabungan antara yang sudah dihuni (occupied) DAN yang sudah dibooking (booked)
-                DB::raw('SUM(CASE WHEN rooms.status IN ("occupied", "booked") THEN 1 ELSE 0 END) as terisi_okupansi'),
-                DB::raw('MIN(rooms.price) as harga_terendah'),
-                DB::raw('MAX(rooms.price) as harga_tertinggi'),
+{
+    // 1. Ambil Data Cabang (Query kamu yang super lengkap)
+    $dataCabang = DB::table('kosts')
+        ->leftJoin('rooms', 'kosts.id', '=', 'rooms.kost_id')
+        ->select('kosts.*')
+        ->selectRaw("COUNT(rooms.id) as total_kamar")
+        ->selectRaw("SUM(CASE WHEN rooms.status = 'available' THEN 1 ELSE 0 END) as tersedia")
+        ->selectRaw("SUM(CASE WHEN rooms.status = 'occupied' THEN 1 ELSE 0 END) as terisi_okupansi")
+        ->selectRaw("GROUP_CONCAT(DISTINCT rooms.type SEPARATOR ', ') as daftar_tipe")
+        ->selectRaw("MIN(rooms.price) as harga_terendah")
+        ->selectRaw("MAX(rooms.price) as harga_tertinggi")
+        ->groupBy('kosts.id')
+        ->get();
 
-                DB::raw('GROUP_CONCAT(rooms.type SEPARATOR ", ") as room_types')
-            )
-            ->groupBy('kosts.id')
-            ->get();
+    // 2. Statistik Global (Buat kotak atas)
+    $totalKamarTerisi = DB::table('rooms')->whereIn('status', ['occupied', 'booked'])->count();
+    $totalKamarTersedia = DB::table('rooms')->where('status', 'available')->count();
 
-        // 2. Statistik Global untuk 3 kotak di atas (Biru, Hijau, Kuning)
-        // Kita hitung status 'occupied' DAN 'booked' sebagai Kamar Terisi
-        $totalKamarTerisi = DB::table('rooms')
-            ->whereIn('status', ['occupied', 'booked'])
-            ->count();
-            
-        $totalKamarTersedia = DB::table('rooms')
-            ->where('status', 'available')
-            ->count();
+    // Ganti get() menjadi paginate(5)
+$notifications = auth()->user()->notifications()->latest()->paginate(5);
 
-        // 3. Mengirimkan data ke view
-        return view('dashboard', compact('dataCabang', 'totalKamarTerisi', 'totalKamarTersedia'));
-    }
+// Kirim ke view seperti biasa
+return view('dashboard', compact(
+    'dataCabang', 
+    'totalKamarTerisi', 
+    'totalKamarTersedia', 
+    'notifications'
+));
+}
+
+
 
     public function show($id)
     {
